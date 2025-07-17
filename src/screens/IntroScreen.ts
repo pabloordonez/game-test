@@ -23,6 +23,11 @@ export class IntroScreen extends BaseScreen {
     private colors: string[] = ['#F14F21', '#7EB900', '#00A3EE', '#FEB800'];
     private isComplete: boolean = false;
 
+    // Interactive state management
+    private isWaitingForInput: boolean = false;
+    private isAnimating: boolean = false;
+    private logoCompleted: boolean = false;
+
     constructor() {
         super();
         this.viewport = new Viewport(800, 600); // Standard game viewport
@@ -37,10 +42,7 @@ export class IntroScreen extends BaseScreen {
     }
 
     private initializeAnimations(): void {
-        console.log('Initializing animations with sequencer...');
-
-        const centerX = this.viewport.getCenterX();
-        const centerY = this.viewport.getCenterY();
+        console.log('Initializing initial logo animation...');
 
         // Phase 1: Logo and text fade in (0-2 seconds)
         const logoFadeIn = new AlphaAnimation(0, 1, 2, EasingFunctions.easeIn);
@@ -52,12 +54,35 @@ export class IntroScreen extends BaseScreen {
             boxFadeIns.push(new AlphaAnimation(0, 1, 1, EasingFunctions.easeIn));
         }
 
-        // Phase 2: Boxes move to corners, grow, and fade out (2-5 seconds)
-        const boxAnimations: MovementAnimation[] = [];
-        const boxAlphaAnimations: AlphaAnimation[] = [];
-        const boxScaleAnimations: ScaleAnimation[] = []; // NEW: Scale animations
+        // Phase 2: "Press any key" text appears after logo is complete (3 seconds)
+        const pressKeyFadeIn = new AlphaAnimation(0, 1, 1, EasingFunctions.easeIn);
 
-        // Centered starting positions
+        // Create initial sequence - just logo appearance and "press key" prompt
+        this.sequencer
+            .play(logoFadeIn, 0)                    // Logo fade in at 0s
+            .parallel(textFadeIn, 0)                // Text fade in at 0s (parallel)
+            .at(1, boxFadeIns[0])                   // Box 1 fade in at 1s
+            .parallel(boxFadeIns[1], 1)             // Box 2 fade in at 1s
+            .parallel(boxFadeIns[2], 1)             // Box 3 fade in at 1s
+            .parallel(boxFadeIns[3], 1)             // Box 4 fade in at 1s
+            .at(3, pressKeyFadeIn);                 // "Press any key" at 3s
+
+        console.log('Initial logo animation initialized successfully');
+    }
+
+    private startExpansionAnimation(): void {
+        console.log('Starting expansion animation...');
+
+        this.isAnimating = true;
+        this.isWaitingForInput = false;
+
+        const centerX = this.viewport.getCenterX();
+        const centerY = this.viewport.getCenterY();
+
+        // Create new sequencer for expansion animation
+        this.sequencer = new AnimationSequencer();
+
+        // Centered starting positions (current positions)
         const startPositions = [
             {x: centerX - 23, y: centerY - 23}, // Top-left square
             {x: centerX + 23, y: centerY - 23}, // Top-right square
@@ -73,6 +98,11 @@ export class IntroScreen extends BaseScreen {
             {x: 750, y: 550}  // Bottom-right corner
         ];
 
+        // Create expansion animations
+        const boxAnimations: MovementAnimation[] = [];
+        const boxAlphaAnimations: AlphaAnimation[] = [];
+        const boxScaleAnimations: ScaleAnimation[] = [];
+
         for (let i = 0; i < startPositions.length; i++) {
             const startPos = startPositions[i];
             const endPos = targetPositions[i];
@@ -83,41 +113,29 @@ export class IntroScreen extends BaseScreen {
             ));
 
             boxAlphaAnimations.push(new AlphaAnimation(1, 0, 3, EasingFunctions.easeOut));
-
-            // NEW: Scale from 1.0 to 2.5 (growing effect)
             boxScaleAnimations.push(new ScaleAnimation(1.0, 2.5, 3, EasingFunctions.easeOut));
         }
 
-        // Phase 3: Star particles start (2 seconds - when boxes start moving)
+        // Star particles start immediately with expansion
         const starStart = new AlphaAnimation(0, 1, 0.5, EasingFunctions.easeIn);
 
-        // Phase 4: Press key text fade in (7-8 seconds)
-        const pressKeyFadeIn = new AlphaAnimation(0, 1, 1, EasingFunctions.easeIn);
-
-        // Create fluent sequence with scale animations
+        // Create expansion sequence
         this.sequencer
-            .play(logoFadeIn, 0)                    // Logo fade in at 0s
-            .parallel(textFadeIn, 0)                // Text fade in at 0s (parallel)
-            .at(1, boxFadeIns[0])                   // Box 1 fade in at 1s
-            .parallel(boxFadeIns[1], 1)             // Box 2 fade in at 1s
-            .parallel(boxFadeIns[2], 1)             // Box 3 fade in at 1s
-            .parallel(boxFadeIns[3], 1)             // Box 4 fade in at 1s
-            .at(2, boxAnimations[0])                // Box 1 move at 2s
-            .parallel(boxAlphaAnimations[0], 2)     // Box 1 fade out at 2s
-            .parallel(boxScaleAnimations[0], 2)     // Box 1 scale at 2s
-            .at(2, boxAnimations[1])                // Box 2 move at 2s
-            .parallel(boxAlphaAnimations[1], 2)     // Box 2 fade out at 2s
-            .parallel(boxScaleAnimations[1], 2)     // Box 2 scale at 2s
-            .at(2, boxAnimations[2])                // Box 3 move at 2s
-            .parallel(boxAlphaAnimations[2], 2)     // Box 3 fade out at 2s
-            .parallel(boxScaleAnimations[2], 2)     // Box 3 scale at 2s
-            .at(2, boxAnimations[3])                // Box 4 move at 2s
-            .parallel(boxAlphaAnimations[3], 2)     // Box 4 fade out at 2s
-            .parallel(boxScaleAnimations[3], 2)     // Box 4 scale at 2s
-            .at(2, starStart)                       // Stars start at 2s (when boxes start moving)
-            .at(7, pressKeyFadeIn);                 // Press key text at 7s
+            .play(boxAnimations[0], 0)                // All animations start immediately
+            .parallel(boxAlphaAnimations[0], 0)
+            .parallel(boxScaleAnimations[0], 0)
+            .parallel(boxAnimations[1], 0)
+            .parallel(boxAlphaAnimations[1], 0)
+            .parallel(boxScaleAnimations[1], 0)
+            .parallel(boxAnimations[2], 0)
+            .parallel(boxAlphaAnimations[2], 0)
+            .parallel(boxScaleAnimations[2], 0)
+            .parallel(boxAnimations[3], 0)
+            .parallel(boxAlphaAnimations[3], 0)
+            .parallel(boxScaleAnimations[3], 0)
+            .parallel(starStart, 0);                  // Stars start with expansion
 
-        console.log('Animations initialized successfully');
+        console.log('Expansion animation started');
     }
 
     update(deltaTime: number): void {
@@ -126,12 +144,22 @@ export class IntroScreen extends BaseScreen {
         this.screenTime += deltaTime;
         this.sequencer.update(deltaTime);
 
-        // Always update star system for testing (no delay)
+        // Always update stars for continuous effect
         this.starSystem.update(deltaTime);
 
-        // Check if animation is complete
-        if (this.sequencer.isComplete()) {
+        // Check initial logo completion (ready for user input)
+        if (!this.logoCompleted && this.sequencer.isComplete()) {
+            this.logoCompleted = true;
+            this.isWaitingForInput = true;
+            console.log('Logo completed - waiting for user input');
+        }
+
+        // Check expansion animation completion (auto-transition to game)
+        if (this.isAnimating && this.sequencer.isComplete()) {
             this.isComplete = true;
+            console.log('Expansion animation completed - auto-transitioning to game');
+            // Automatically transition to game screen
+            this.requestScreenChange(ScreenType.GAME);
         }
     }
 
@@ -150,11 +178,16 @@ export class IntroScreen extends BaseScreen {
         // Draw moving boxes
         this.renderMovingBoxes(canvas);
 
-        // Draw completion text
-        if (this.isComplete) {
-            const centerX = this.viewport.getCenterX();
-            canvas.drawCenteredText('Press any key to continue...', centerX, 500, '24px Arial', '#ffffff');
+        // Draw appropriate prompt text
+        const centerX = this.viewport.getCenterX();
+        if (this.isWaitingForInput) {
+            // Show "press key to start" when waiting for user to trigger expansion
+            const pressKeyAlpha = this.sequencer.getAnimationValue(4); // Animation index 4 is the press key fade-in
+            if (pressKeyAlpha > 0) {
+                canvas.drawCenteredText('Press any key to start', centerX, 500, '24px Arial', '#ffffff', pressKeyAlpha);
+            }
         }
+        // Note: No text shown during/after expansion - automatic transition
     }
 
     private renderStarParticles(canvas: Canvas): void {
@@ -162,9 +195,8 @@ export class IntroScreen extends BaseScreen {
 
         for (const particle of particles) {
             if (particle.alpha > 0) {
-                // Make particles more visible with larger radius
-                const radius = 4; // Increased from 3 to 4 pixels for better visibility
-                canvas.drawCircle(particle.x, particle.y, radius, particle.color, particle.alpha);
+                // Use dynamic radius from particle (grows over time and distance)
+                canvas.drawCircle(particle.x, particle.y, particle.radius, particle.color, particle.alpha);
             }
         }
     }
@@ -204,34 +236,32 @@ export class IntroScreen extends BaseScreen {
         for (let i = 0; i < 4; i++) {
             const color = this.colors[i];
 
-            // Get fade-in animation (indices 2-5)
-            const fadeInAnimation = this.sequencer.getAnimation(2 + i) as AlphaAnimation;
-            // Get movement animation (indices 6, 10, 14, 18)
-            const moveAnimation = this.sequencer.getAnimation(6 + i * 3) as MovementAnimation;
-            // Get fade-out animation (indices 7, 11, 15, 19)
-            const fadeOutAnimation = this.sequencer.getAnimation(7 + i * 3) as AlphaAnimation;
-            // Get scale animation (indices 8, 12, 16, 20)
-            const scaleAnimation = this.sequencer.getAnimation(8 + i * 3) as ScaleAnimation;
-
             let position = centeredBoxPositions[i];
             let alpha = 1;
             let scale = 1;
 
-            // Use fade-in animation if active
-            if (fadeInAnimation && !fadeInAnimation.isComplete()) {
-                alpha = fadeInAnimation.getAlpha();
-            }
-            // Use movement, fade-out, and scale animations if active
-            else if (moveAnimation && fadeOutAnimation && scaleAnimation) {
-                if (moveAnimation && !moveAnimation.isComplete()) {
+            if (!this.isAnimating) {
+                // Initial phase - use fade-in animations (indices 2-5)
+                const fadeInAlpha = this.sequencer.getAnimationValue(2 + i);
+                alpha = fadeInAlpha;
+                        } else {
+                // Expansion phase - use movement, fade-out, and scale animations
+                // During expansion, all animations run in parallel groups of 3
+
+                // Movement animations: indices 0, 3, 6, 9
+                const moveIndex = i * 3;
+                const moveAnimation = this.sequencer.getAnimation(moveIndex) as MovementAnimation;
+                if (moveAnimation && moveAnimation.getPosition) {
                     position = moveAnimation.getPosition();
                 }
-                if (fadeOutAnimation && !fadeOutAnimation.isComplete()) {
-                    alpha = fadeOutAnimation.getAlpha();
-                }
-                if (scaleAnimation && !scaleAnimation.isComplete()) {
-                    scale = scaleAnimation.getScale();
-                }
+
+                // Fade-out animations: indices 1, 4, 7, 10
+                const fadeIndex = i * 3 + 1;
+                alpha = this.sequencer.getAnimationValue(fadeIndex);
+
+                // Scale animations: indices 2, 5, 8, 11
+                const scaleIndex = i * 3 + 2;
+                scale = this.sequencer.getAnimationValue(scaleIndex);
             }
 
             if (alpha > 0) {
@@ -248,12 +278,15 @@ export class IntroScreen extends BaseScreen {
     handleInput(inputManager: InputManager): void {
         if (!this.isActive) return;
 
-        // Check for any key press to continue
-        if (this.isComplete && (inputManager.isMoveLeft() || inputManager.isMoveRight() ||
-                               inputManager.isFire() || inputManager.isPause() ||
-                               inputManager.isKeyPressed('Space') || inputManager.isKeyPressed('Enter'))) {
-            // Transition to menu screen
-            this.requestScreenChange(ScreenType.MENU);
+        // Check for any key press
+        const anyKeyPressed = inputManager.isMoveLeft() || inputManager.isMoveRight() ||
+                             inputManager.isFire() || inputManager.isPause() ||
+                             inputManager.isKeyPressed('Space') || inputManager.isKeyPressed('Enter');
+
+        if (anyKeyPressed && this.isWaitingForInput) {
+            // User pressed key to start expansion animation (only handles initial trigger)
+            console.log('User triggered expansion animation');
+            this.startExpansionAnimation();
         }
     }
 
