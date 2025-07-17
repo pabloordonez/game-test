@@ -1,3 +1,5 @@
+import { Canvas } from "@/core/Canvas";
+
 export class Viewport {
     private width: number;
     private height: number;
@@ -5,6 +7,10 @@ export class Viewport {
     constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
+    }
+
+    static fromCanvas(canvas: Canvas): Viewport {
+        return new Viewport(canvas.getWidth(), canvas.getHeight());
     }
 
     getWidth(): number {

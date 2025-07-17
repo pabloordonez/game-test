@@ -142,12 +142,16 @@ Random upgrades dropped from destroyed blocks:
 
 ### 6.6 Animation System
 
-- **Animation Framework**: Reusable animation system with configurable duration and easing
-- **Animation Types**: Color, movement, scale, rotation, and alpha animations
-- **Easing Functions**: Linear, ease-in, ease-out, ease-in-out, bounce, elastic, and back interpolation
-- **Animation Sequencer**: Fluent interface for timing and sequencing animations
-- **Particle Systems**: Dedicated particle system with continuous star effects for deep space
+- **Animation Timeline**: Multi-sequence animation system with state-based rendering
+- **Animation Sequencer**: Enhanced sequencer with lifecycle callbacks and time tracking
+- **Animation Types**: Fade, movement, scale, and multi-object animations
+- **Easing Functions**: Linear, ease-in, ease-out, and custom easing functions
+- **State-Based Rendering**: Screen states with optional render methods for clean separation
+- **Time Tracking**: Proper pause/resume/stop functionality with elapsed time tracking
+- **Lifecycle Callbacks**: onStart, onEnd, onUpdate callbacks for state transitions
 - **Performance**: Efficient animation updates with delta time integration
+- **Particle Systems**: Dedicated particle system with continuous star effects for deep space
+- **Implementation Status**: ✅ AnimationTimeline and enhanced AnimationSequencer implemented
 
 ### 6.7 Special Effects System
 
@@ -170,10 +174,12 @@ Random upgrades dropped from destroyed blocks:
 
 - **Screen System**: Game acts as a container for different screens
 - **Screen States**: Each screen represents a different game state (Intro, Menu, Game, Pause, etc.)
-- **Screen Logic**: Each screen manages its own rendering and update logic
+- **State-Based Rendering**: Screens use state machines with optional render methods
+- **State-Based Input**: Screens use state machines with optional input handlers
+- **Screen Logic**: Each screen manages its own rendering, update, and input logic
 - **State Transitions**: Game manages transitions between screens
 - **Screen Types**:
-  - **Intro Screen**: Windows logo animation and level generation
+  - **Intro Screen**: Windows logo animation with state-based rendering and input
   - **Menu Screen**: Title and options without ECS
   - **Game Screen**: Main gameplay with full ECS integration
   - **Pause Screen**: Overlay screen during gameplay

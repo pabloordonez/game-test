@@ -2,24 +2,37 @@ import { Animation, AlphaAnimation, MovementAnimation, ScaleAnimation } from './
 import { EasingFunctions } from './EasingFunctions';
 import { Vector2 } from '../utils/Math';
 
-export interface AnimationStep {
-	animation: Animation;
-	startTime: number;
-	isActive: boolean;
-}
-
 export class AnimationSequencer {
-	private steps: AnimationStep[] = [];
-	private names: Map<string, AnimationStep> = new Map(); // name -> step indices
+	private name: string;
+	private animations: Animation[] = [];
+	private names: Map<string, Animation> = new Map(); // name -> animation
+	private startedAnimations: Set<Animation> = new Set(); // Track which animations have been started
 	private currentTime: number = 0;
 	private isActive: boolean = true;
+	private isPaused: boolean = false;
+	private isStopped: boolean = false;
 	private lastStartTime: number = 0;
 	private lastDuration: number = 0;
 	private lastEasing: (t: number) => number = EasingFunctions.linear;
 
-	constructor() {
-		this.steps = [];
+	// Lifecycle callbacks
+	private onStartCallback?: () => void;
+	private onEndCallback?: () => void;
+	private onUpdateCallback?: (progress: number) => void;
+
+	constructor(name: string) {
+		this.name = name;
+		this.animations = [];
 		this.names = new Map();
+		this.startedAnimations = new Set();
+	}
+
+	/**
+	 * Get the name of the sequencer
+	 * @returns Name of the sequencer
+	 */
+	getName(): string {
+		return this.name;
 	}
 
 	/**
@@ -56,9 +69,9 @@ export class AnimationSequencer {
 	 */
 	play(name: string, animations: Animation | Animation[]): AnimationSequencer {
 		if (Array.isArray(animations)) {
-			animations.forEach((anim) => this.addStep(name, anim, this.lastStartTime));
+			animations.forEach((anim) => this.addAnimation(name, anim, this.lastStartTime));
 		} else if (animations instanceof Animation) {
-			this.addStep(name, animations, this.lastStartTime);
+			this.addAnimation(name, animations, this.lastStartTime);
 		}
 
 		return this;
@@ -81,7 +94,7 @@ export class AnimationSequencer {
 	sequence(name: string, animations: Animation[], delay: number = 0): AnimationSequencer {
 		let currentTime = this.lastStartTime;
 		animations.forEach((anim, i) => {
-			this.addStep(`${name}.${i}`, anim, currentTime);
+			this.addAnimation(`${name}.${i}`, anim, currentTime);
 			currentTime += anim.getDuration() + delay;
 		});
 
@@ -95,9 +108,9 @@ export class AnimationSequencer {
 	 * @param delay Delay between animations
 	 */
 	then(name: string, animation: Animation, delay: number = 0): AnimationSequencer {
-		if (this.steps.length === 0) throw new Error('No animations to sequence');
-		const lastStep = this.steps[this.steps.length - 1];
-		const startTime = lastStep.startTime + lastStep.animation.getDuration() + delay;
+		if (this.animations.length === 0) throw new Error('No animations to sequence');
+		const lastAnimation = this.animations[this.animations.length - 1];
+		const startTime = (lastAnimation as any).startTime + lastAnimation.getDuration() + delay;
 		return this.at(startTime).play(name, animation);
 	}
 
@@ -110,7 +123,7 @@ export class AnimationSequencer {
 	fade(name: string, from: number, to: number): AnimationSequencer {
 		if (from < 0 || from > 1 || to < 0 || to > 1) throw new Error('Alpha values must be between 0 and 1');
 		const animation = new AlphaAnimation(from, to, this.lastDuration, this.lastEasing);
-		this.addStep(name, animation, this.lastStartTime);
+		this.addAnimation(name, animation, this.lastStartTime);
 		return this;
 	}
 
@@ -122,7 +135,7 @@ export class AnimationSequencer {
 	 */
 	move(name: string, from: Vector2, to: Vector2): AnimationSequencer {
 		const animation = new MovementAnimation(from.x, from.y, to.x, to.y, this.lastDuration, this.lastEasing);
-		this.addStep(name, animation, this.lastStartTime);
+		this.addAnimation(name, animation, this.lastStartTime);
 		return this;
 	}
 
@@ -140,7 +153,7 @@ export class AnimationSequencer {
 		for (let i = 0; i < fromPositions.length; i++) {
 			const name = `${baseName}.${i}`;
 			const animation = new MovementAnimation(fromPositions[i].x, fromPositions[i].y, toPositions[i].x, toPositions[i].y, this.lastDuration, this.lastEasing);
-			this.addStep(name, animation, this.lastStartTime);
+			this.addAnimation(name, animation, this.lastStartTime);
 		}
 
 		return this;
@@ -154,7 +167,7 @@ export class AnimationSequencer {
 	*/
 	scale(name: string, from: number, to: number): AnimationSequencer {
 		const animation = new ScaleAnimation(from, to, this.lastDuration, this.lastEasing);
-		this.addStep(name, animation, this.lastStartTime);
+		this.addAnimation(name, animation, this.lastStartTime);
 		return this;
 	}
 
@@ -164,9 +177,9 @@ export class AnimationSequencer {
 	 */
 	getValue(name: string): number {
         if (!this.names.has(name)) throw new Error(`Animation ${name} not found`);
-		const step = this.names.get(name);
-        if (!step) throw new Error(`Animation ${name} is null`);
-		return step?.isActive ? step.animation.getValue() : 0;
+		const animation = this.names.get(name);
+        if (!animation) throw new Error(`Animation ${name} is null`);
+		return animation.getValue();
 	}
 
 	/**
@@ -175,33 +188,54 @@ export class AnimationSequencer {
 	 */
 	getAnimation(name: string): Animation  {
 		if (!this.names.has(name)) throw new Error(`Animation ${name} not found`);
-		const step = this.names.get(name);
-        if (!step) throw new Error(`Animation ${name} is null`);
-		return step.animation;
+		const animation = this.names.get(name);
+        if (!animation) throw new Error(`Animation ${name} is null`);
+		return animation;
 	}
 
 	update(deltaTime: number): void {
-		if (!this.isActive) return;
+		if (!this.isActive || this.isPaused || this.isStopped) return;
 
 		this.currentTime += deltaTime;
 
-		// Update all steps
-		for (const step of this.steps) {
-			if (this.currentTime >= step.startTime && !step.isActive) {
-				step.isActive = true;
-				step.animation.reset();
+		// Call onStart callback when first animation starts
+		if (this.onStartCallback && this.currentTime > 0 && this.startedAnimations.size > 0) {
+			this.onStartCallback();
+			this.onStartCallback = undefined; // Only call once
+		}
+
+		// Update all animations
+		for (const animation of this.animations) {
+			const startTime = (animation as any).startTime;
+
+			// Start animation if it's time and it hasn't been started yet
+			if (this.currentTime >= startTime && !this.startedAnimations.has(animation)) {
+				animation.reset();
+				this.startedAnimations.add(animation);
 			}
 
-			if (step.isActive) {
-				step.animation.update(deltaTime);
+			// Update animation if it's started and not complete
+			if (this.startedAnimations.has(animation) && !animation.isComplete()) {
+				animation.update(deltaTime);
 			}
 		}
 
+		// Call onUpdate callback with progress
+		if (this.onUpdateCallback) {
+			const totalDuration = Math.max(...this.animations.map(anim => (anim as any).startTime + anim.getDuration()));
+			const progress = Math.min(this.currentTime / totalDuration, 1);
+			this.onUpdateCallback(progress);
+		}
+
 		// Check if all animations are complete
-		const allComplete = this.steps.every((step) => !step.isActive || step.animation.isComplete());
+		const allComplete = this.animations.every((animation) => animation.isComplete());
 
 		if (allComplete) {
 			this.isActive = false;
+			// Call onEnd callback when all animations complete
+			if (this.onEndCallback) {
+				this.onEndCallback();
+			}
 		}
 	}
 
@@ -212,20 +246,95 @@ export class AnimationSequencer {
 	reset(): void {
 		this.currentTime = 0;
 		this.isActive = true;
-		this.steps.forEach((step) => {
-			step.isActive = false;
-			step.animation.reset();
+		this.isPaused = false;
+		this.isStopped = false;
+		this.startedAnimations.clear();
+		this.animations.forEach((animation) => {
+			animation.setActive(false);
+			animation.reset();
 		});
 	}
 
-	private addStep(name: string, animation: Animation, startTime: number): void {
-		const animationStep: AnimationStep = {
-			animation,
-			startTime,
-			isActive: false
-		};
+	/**
+	 * Pause the sequencer (freezes at current time)
+	 */
+	pause(): AnimationSequencer {
+		this.isPaused = true;
+		return this;
+	}
 
-		this.steps.push(animationStep);
-		this.names.set(name, animationStep);
+	/**
+	 * Resume the sequencer (continues from frozen time)
+	 */
+	resume(): AnimationSequencer {
+		this.isPaused = false;
+		return this;
+	}
+
+	/**
+	 * Stop the sequencer (resets elapsed time to 0 and restarts from beginning)
+	 */
+	stop(): AnimationSequencer {
+		this.isStopped = true;
+		this.currentTime = 0;
+		this.resetAllAnimations();
+		return this;
+	}
+
+	/**
+	 * Check if sequencer is paused
+	 */
+	isSequencerPaused(): boolean {
+		return this.isPaused;
+	}
+
+	/**
+	 * Check if sequencer is stopped
+	 */
+	isSequencerStopped(): boolean {
+		return this.isStopped;
+	}
+
+	/**
+	 * Set onStart callback
+	 */
+	onStart(callback: () => void): AnimationSequencer {
+		this.onStartCallback = callback;
+		return this;
+	}
+
+	/**
+	 * Set onEnd callback
+	 */
+	onEnd(callback: () => void): AnimationSequencer {
+		this.onEndCallback = callback;
+		return this;
+	}
+
+	/**
+	 * Set onUpdate callback
+	 */
+	onUpdate(callback: (progress: number) => void): AnimationSequencer {
+		this.onUpdateCallback = callback;
+		return this;
+	}
+
+	/**
+	 * Reset all animations to initial state
+	 */
+	private resetAllAnimations(): void {
+		this.startedAnimations.clear();
+		this.animations.forEach((animation) => {
+			animation.setActive(false);
+			animation.reset();
+		});
+	}
+
+	private addAnimation(name: string, animation: Animation, startTime: number): void {
+		// Add startTime property to the animation instance
+		(animation as any).startTime = startTime;
+
+		this.animations.push(animation);
+		this.names.set(name, animation);
 	}
 }

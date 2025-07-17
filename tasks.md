@@ -6,7 +6,7 @@ This document provides detailed implementation tasks for developing the Stellar 
 
 ---
 
-## 1.2. Phase 1: Core Foundation
+## 1.2. Phase 1: Core Foundation & Animation System
 
 ### 1.2.1. Task 1.1: Project Setup and Build System
 
@@ -161,6 +161,107 @@ interface SystemRegistration {
 
 **Priority**: High
 
+### 1.2.4. Task 1.4: Animation System Foundation
+
+**Priority**: Critical
+
+#### 1.2.4.1. Requirements
+
+- Implement AnimationTimeline class for multi-sequence animation management
+- Enhance AnimationSequencer with lifecycle callbacks and time tracking
+- Create state-based rendering system for screens
+- Implement pause/resume/stop functionality with proper time tracking
+- Add lifecycle callbacks (onStart, onEnd, onUpdate) for state transitions
+- Create particle system for star effects
+
+#### 1.2.4.2. Technical Specifications
+
+```typescript
+// Animation Timeline for managing multiple sequences
+class AnimationTimeline {
+  private sequences: Map<string, AnimationSequencer> = new Map();
+  private currentSequenceName: string | null = null;
+  private isPaused: boolean = false;
+  private isStopped: boolean = false;
+  private elapsedTime: number = 0;
+
+  sequence(name: string): AnimationSequencer;
+  startSequence(name: string): void;
+  pause(): void;    // Freezes at current time
+  resume(): void;   // Continues from frozen time
+  stop(): void;     // Resets elapsed time to 0 and restarts from beginning
+  update(deltaTime: number): void;  // Handles pause/stop state internally
+  isComplete(): boolean;
+}
+
+// Enhanced Animation Sequencer with callbacks
+class AnimationSequencer {
+  // Existing methods (unchanged)
+  at(time: number): AnimationSequencer;
+  for(duration: number): AnimationSequencer;
+  easeWith(easing: (t: number) => number): AnimationSequencer;
+  fade(name: string, from: number, to: number): AnimationSequencer;
+  move(name: string, from: Vector2, to: Vector2): AnimationSequencer;
+  moveMultiple(baseName: string, fromPositions: Vector2[], toPositions: Vector2[]): AnimationSequencer;
+  scale(name: string, from: number, to: number): AnimationSequencer;
+  getValue(name: string): number;
+  getAnimation(name: string): Animation;
+
+  // Control methods with time tracking
+  pause(): AnimationSequencer;    // Freezes at current time
+  resume(): AnimationSequencer;   // Continues from frozen time
+  stop(): AnimationSequencer;     // Resets elapsed time to 0 and restarts from beginning
+  isPaused(): boolean;
+  isStopped(): boolean;
+
+  // Lifecycle callback methods
+  onStart(callback: () => void): AnimationSequencer;
+  onEnd(callback: () => void): AnimationSequencer;
+  onUpdate(callback: (progress: number) => void): AnimationSequencer;
+}
+
+// State-based rendering system
+type ScreenState = 'initial' | 'fadingIn' | 'waitingForInput' | 'expanding' | 'complete';
+type StateRenderMethod = (canvas: Canvas) => void;
+type StateInputHandler = (inputManager: InputManager) => void;
+
+class IntroScreen extends BaseScreen {
+  private state: ScreenState = 'initial';
+  private timeline: AnimationTimeline;
+  private stateRenderers: Partial<Record<ScreenState, StateRenderMethod>>;
+  private stateInputHandlers: Partial<Record<ScreenState, StateInputHandler>>;
+
+  // State-based rendering and input handling
+  render(canvas: Canvas): void {
+    canvas.clear();
+    this.renderStarParticles(canvas);
+    if (this.stateRenderers[this.state]) {
+      this.stateRenderers[this.state]!(canvas);
+    }
+  }
+
+  handleInput(inputManager: InputManager): void {
+    if (!this.isActive) return;
+    if (this.stateInputHandlers[this.state]) {
+      this.stateInputHandlers[this.state]!(inputManager);
+    }
+  }
+}
+```
+
+#### 1.2.4.3. Acceptance Criteria
+
+- [x] AnimationTimeline class implemented with multi-sequence support
+- [x] AnimationSequencer enhanced with lifecycle callbacks
+- [x] State-based rendering system works with optional render methods
+- [x] State-based input handling works with optional input handlers
+- [x] Pause/resume/stop functionality works with proper time tracking
+- [x] Lifecycle callbacks trigger state transitions correctly
+- [x] Particle system renders star effects efficiently
+- [x] No manual flags needed - state machine handles all transitions
+- [x] Timeline handles its own update state internally
+- [x] Performance scales well with multiple animations
+
 #### 1.2.3.1. Requirements
 
 - Implement keyboard input handling
@@ -220,7 +321,129 @@ interface GamepadManager {
 - [ ] Multiple key combinations work correctly
 - [ ] Input system is extensible for future features
 
-### 1.2.4. Task 1.4: Basic Rendering System and Asset Management
+### 1.2.5. Task 1.5: Screen System Foundation
+
+**Priority**: Critical
+
+#### 1.2.5.1. Requirements
+
+- Implement base Screen class with state-based architecture
+- Create IntroScreen with state-based rendering and input handling
+- Implement screen transition system
+- Create state machine for screen states
+- Add optional render methods and input handlers
+- Implement screen lifecycle management
+
+#### 1.2.5.2. Technical Specifications
+
+```typescript
+// Base screen class with state-based architecture
+abstract class BaseScreen {
+  protected isActive: boolean = false;
+  protected screenTime: number = 0;
+
+  abstract update(deltaTime: number): void;
+  abstract render(canvas: Canvas): void;
+  abstract handleInput(inputManager: InputManager): void;
+
+  activate(): void;
+  deactivate(): void;
+  isActive(): boolean;
+}
+
+// Screen state management
+type ScreenState = 'initial' | 'fadingIn' | 'waitingForInput' | 'expanding' | 'complete';
+type StateRenderMethod = (canvas: Canvas) => void;
+type StateInputHandler = (inputManager: InputManager) => void;
+
+class IntroScreen extends BaseScreen {
+  private state: ScreenState = 'initial';
+  private timeline: AnimationTimeline;
+  private stateRenderers: Partial<Record<ScreenState, StateRenderMethod>>;
+  private stateInputHandlers: Partial<Record<ScreenState, StateInputHandler>>;
+
+  constructor() {
+    super();
+    this.timeline = new AnimationTimeline();
+    this.initializeSequences();
+    this.initializeRenderers();
+    this.initializeInputHandlers();
+  }
+
+  private initializeSequences(): void {
+    this.timeline
+      .sequence('fadingIn')
+        .at(0).for(2).easeWith(EasingFunctions.easeIn)
+        .fade('logoAlpha', 0, 1)
+        .fade('titleAlpha', 0, 1)
+        .at(2).for(1)
+        .fade('pressKeyAlpha', 0, 1)
+        .onEnd(() => this.state = 'waitingForInput')
+
+      .sequence('expanding')
+        .at(0).for(3).easeWith(EasingFunctions.easeOut)
+        .moveMultiple('boxMovement', this.getStartPositions(), this.getTargetPositions())
+        .fade('logoAlpha', 1, 0)
+        .scale('logoScale', 1, 2.5)
+        .for(2)
+        .fade('titleAlpha', 1, 0)
+        .fade('pressKeyAlpha', 1, 0)
+        .onStart(() => this.state = 'expanding')
+        .onEnd(() => this.requestScreenChange(ScreenType.GAME, { type: TransitionType.FADE, duration: 1.5 }));
+  }
+
+  private initializeRenderers(): void {
+    this.stateRenderers = {
+      fadingIn: this.renderFadingIn.bind(this),
+      waitingForInput: this.renderWaitingForInput.bind(this),
+      expanding: this.renderExpanding.bind(this)
+    };
+  }
+
+  private initializeInputHandlers(): void {
+    this.stateInputHandlers = {
+      waitingForInput: this.handleWaitingForInputInput.bind(this)
+    };
+  }
+
+  update(deltaTime: number): void {
+    if (!this.isActive) return;
+    this.screenTime += deltaTime;
+    this.timeline.update(deltaTime);
+    this.starSystem.update(deltaTime);
+  }
+
+  render(canvas: Canvas): void {
+    if (!this.isActive) return;
+    canvas.clear();
+    this.renderStarParticles(canvas);
+    if (this.stateRenderers[this.state]) {
+      this.stateRenderers[this.state]!(canvas);
+    }
+  }
+
+  handleInput(inputManager: InputManager): void {
+    if (!this.isActive) return;
+    if (this.stateInputHandlers[this.state]) {
+      this.stateInputHandlers[this.state]!(inputManager);
+    }
+  }
+}
+```
+
+#### 1.2.5.3. Acceptance Criteria
+
+- [x] BaseScreen class implemented with proper lifecycle
+- [x] IntroScreen implements state-based rendering and input
+- [x] Screen transitions work correctly
+- [x] State machine handles all screen states
+- [x] Optional render methods work for states that need them
+- [x] Optional input handlers work for states that need them
+- [x] No manual flags needed - state machine handles transitions
+- [x] Screen lifecycle (activate/deactivate) works correctly
+- [x] Animation timeline integrates properly with screen states
+
+### 1.2.6. Task 1.6: Basic Rendering System and Asset Management
 
 **Priority**: High
 
