@@ -10,17 +10,19 @@ import { RenderingSystem } from '../ecs/systems/RenderingSystem';
 import { HealthSystem } from '../ecs/systems/HealthSystem';
 import { EffectSystem } from '../ecs/systems/EffectSystem';
 import { Ship } from '../ecs/entities/Ship';
-import { Block } from '../ecs/entities/Block';
+import { LevelManager } from '../levels/LevelManager';
 
 export class GameScreen implements Screen {
     private world: World;
     private inputManager: InputManager;
     private systems: any[] = [];
     private renderingSystem: RenderingSystem | null = null;
+    private levelManager: LevelManager;
 
     constructor(game: Game) {
-        this.world = new World();
+        this.world = game.getWorld();
         this.inputManager = game.getInputManager();
+        this.levelManager = new LevelManager(this.world);
         this.setupSystems();
         this.createGameWorld();
     }
@@ -47,27 +49,39 @@ export class GameScreen implements Screen {
         });
     }
 
-    private createGameWorld(): void {
+        private createGameWorld(): void {
         // Create ship
         const ship = Ship.create(this.world, 400, 550);
         console.log('Ship created with ID:', ship.id);
 
-        // Create some blocks
-        for (let i = 0; i < 5; i++) {
-            const block = Block.create(this.world, 100 + i * 150, 100);
-            console.log('Block created with ID:', block.id);
-        }
+        // Load level 1 from file
+        this.levelManager.loadLevelFromFile(1).then(() => {
+            console.log('Level 1 loaded from file successfully');
+        }).catch((error) => {
+            console.error('Failed to load level 1:', error);
+        });
+
+        // Debug: Check how many entities we have
+        console.log('Total entities in world:', this.world.getEntityCount());
+        console.log('Total systems registered:', this.world.getSystemCount());
     }
 
     update(deltaTime: number): void {
-        this.world.updateSystems(deltaTime);
+        // Update level manager
+        this.levelManager.update(deltaTime);
+
+        // Check for level completion
+        if (this.levelManager.isLevelComplete()) {
+            console.log('Level completed!');
+            // TODO: Handle level completion (advance to next level or show win screen)
+        }
     }
 
     render(canvas: Canvas): void {
         // Clear canvas
         canvas.clear();
 
-        // Create and register rendering system if not already done
+        // Create rendering system with the canvas if not already created
         if (!this.renderingSystem) {
             this.renderingSystem = new RenderingSystem(this.world, canvas);
             this.world.registerSystem(this.renderingSystem);
@@ -78,6 +92,21 @@ export class GameScreen implements Screen {
 
         // Use the world's render method which will call the rendering system
         this.world.render(canvas);
+
+        // Render level progress
+        this.renderLevelProgress(canvas);
+    }
+
+    private renderLevelProgress(canvas: Canvas): void {
+        const progress = this.levelManager.getCurrentProgress();
+        const progressText = `Level Progress: ${Math.round(progress * 100)}%`;
+
+        canvas.drawText(progressText, 10, 30, '16px Arial', '#ffffff');
+
+        const currentLevel = this.levelManager.getCurrentLevel();
+        if (currentLevel) {
+            canvas.drawText(`Level: ${currentLevel.name}`, 10, 50, '16px Arial', '#ffffff');
+        }
     }
 
     renderWithTransition(canvas: Canvas): void {

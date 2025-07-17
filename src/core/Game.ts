@@ -184,6 +184,9 @@ export class Game {
         // Update input
         this.inputManager.update();
 
+        // Update ECS world systems
+        this.world.updateSystems(deltaTime);
+
         // Update current screen
         if (this.currentScreen) {
             this.currentScreen.update(deltaTime);

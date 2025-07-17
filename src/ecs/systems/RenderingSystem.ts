@@ -21,6 +21,8 @@ export class RenderingSystem implements System {
     }
 
     render(): void {
+        console.log(`RenderingSystem: Rendering ${this.entities.length} entities`);
+
         // Sort entities by render order (background first, UI last)
         const sortedEntities = [...this.entities].sort((a, b) => {
             const renderA = this.world.getComponent(a.id, 'RenderComponent') as RenderComponent;
