@@ -13,6 +13,9 @@ export class AnimationSequencer {
 	private names: Map<string, AnimationStep> = new Map(); // name -> step indices
 	private currentTime: number = 0;
 	private isActive: boolean = true;
+	private lastStartTime: number = 0;
+	private lastDuration: number = 0;
+	private lastEasing: (t: number) => number = EasingFunctions.linear;
 
 	constructor() {
 		this.steps = [];
@@ -20,15 +23,42 @@ export class AnimationSequencer {
 	}
 
 	/**
+	 * Set the start time of the sequencer
+	 * @param startTime When to start (default: 0)
+	 */
+	at(startTime: number): AnimationSequencer {
+		this.lastStartTime = startTime;
+		return this;
+	}
+
+	/**
+	 * Set the duration of the sequencer
+	 * @param duration Duration in seconds
+	 */
+	for(duration: number): AnimationSequencer {
+		this.lastDuration = duration;
+		return this;
+	}
+
+	/**
+	 * Set the easing function of the sequencer
+	 * @param easing Easing function
+	 */
+	easeWith(easing: (t: number) => number): AnimationSequencer {
+		this.lastEasing = easing;
+		return this;
+	}
+
+	/**
 	 * Play animations together at the same time
 	 * @param animations Single animation, array of animations, or named group
 	 * @param startTime When to start (default: 0)
 	 */
-	play(name: string, animations: Animation | Animation[], startTime: number = 0): AnimationSequencer {
+	play(name: string, animations: Animation | Animation[]): AnimationSequencer {
 		if (Array.isArray(animations)) {
-			animations.forEach((anim) => this.addStep(name, anim, startTime));
+			animations.forEach((anim) => this.addStep(name, anim, this.lastStartTime));
 		} else if (animations instanceof Animation) {
-			this.addStep(name, animations, startTime);
+			this.addStep(name, animations, this.lastStartTime);
 		}
 
 		return this;
@@ -40,7 +70,7 @@ export class AnimationSequencer {
 	 * @param startTime When to start (default: same as last group)
 	 */
 	combineWith(name: string, animations: Animation | Animation[]): AnimationSequencer {
-		return this.play(name, animations, this.getLastStartTime());
+		return this.play(name, animations);
 	}
 
 	/**
@@ -49,7 +79,7 @@ export class AnimationSequencer {
 	 * @param delay Optional delay between animations
 	 */
 	sequence(name: string, animations: Animation[], delay: number = 0): AnimationSequencer {
-		let currentTime = this.getLastStartTime();
+		let currentTime = this.lastStartTime;
 		animations.forEach((anim, i) => {
 			this.addStep(`${name}.${i}`, anim, currentTime);
 			currentTime += anim.getDuration() + delay;
@@ -60,12 +90,15 @@ export class AnimationSequencer {
 
 	/**
 	 * Chain animations sequentially
+	 * @param name Animation name
+	 * @param animation Animation to chain
+	 * @param delay Delay between animations
 	 */
 	then(name: string, animation: Animation, delay: number = 0): AnimationSequencer {
 		if (this.steps.length === 0) throw new Error('No animations to sequence');
 		const lastStep = this.steps[this.steps.length - 1];
 		const startTime = lastStep.startTime + lastStep.animation.getDuration() + delay;
-		return this.play(name, animation, startTime);
+		return this.at(startTime).play(name, animation);
 	}
 
 	/**
@@ -73,14 +106,11 @@ export class AnimationSequencer {
 	 * @param name Animation name
 	 * @param from Starting alpha (0-1)
 	 * @param to Ending alpha (0-1)
-	 * @param duration Duration in seconds
-	 * @param startTime When to start (default: 0)
-	 * @param easing Easing function (default: linear)
 	 */
-	fade(name: string, from: number, to: number, duration: number, startTime: number = 0, easing: (t: number) => number = EasingFunctions.linear): AnimationSequencer {
+	fade(name: string, from: number, to: number): AnimationSequencer {
 		if (from < 0 || from > 1 || to < 0 || to > 1) throw new Error('Alpha values must be between 0 and 1');
-		const animation = new AlphaAnimation(from, to, duration, easing);
-		this.addStep(name, animation, startTime);
+		const animation = new AlphaAnimation(from, to, this.lastDuration, this.lastEasing);
+		this.addStep(name, animation, this.lastStartTime);
 		return this;
 	}
 
@@ -89,13 +119,10 @@ export class AnimationSequencer {
 	 * @param name Animation name
 	 * @param from Starting position
 	 * @param to Ending position
-	 * @param duration Duration in seconds
-	 * @param startTime When to start (default: 0)
-	 * @param easing Easing function (default: linear)
 	 */
-	move(name: string, from: Vector2, to: Vector2, duration: number, startTime: number = 0, easing: (t: number) => number = EasingFunctions.linear): AnimationSequencer {
-		const animation = new MovementAnimation(from.x, from.y, to.x, to.y, duration, easing);
-		this.addStep(name, animation, startTime);
+	move(name: string, from: Vector2, to: Vector2): AnimationSequencer {
+		const animation = new MovementAnimation(from.x, from.y, to.x, to.y, this.lastDuration, this.lastEasing);
+		this.addStep(name, animation, this.lastStartTime);
 		return this;
 	}
 
@@ -104,22 +131,16 @@ export class AnimationSequencer {
 	 * @param baseName Base name for animations (will be named baseName0, baseName1, etc.)
 	 * @param fromPositions Array of starting positions
 	 * @param toPositions Array of ending positions
-	 * @param duration Duration in seconds
-	 * @param startTime When to start (default: 0)
-	 * @param easing Easing function (default: linear)
 	 */
 	moveMultiple(
 		baseName: string,
 		fromPositions: Vector2[],
 		toPositions: Vector2[],
-		duration: number,
-		startTime: number = 0,
-		easing: (t: number) => number = EasingFunctions.linear
 	): AnimationSequencer {
 		for (let i = 0; i < fromPositions.length; i++) {
 			const name = `${baseName}.${i}`;
-			const animation = new MovementAnimation(fromPositions[i].x, fromPositions[i].y, toPositions[i].x, toPositions[i].y, duration, easing);
-			this.addStep(name, animation, startTime);
+			const animation = new MovementAnimation(fromPositions[i].x, fromPositions[i].y, toPositions[i].x, toPositions[i].y, this.lastDuration, this.lastEasing);
+			this.addStep(name, animation, this.lastStartTime);
 		}
 
 		return this;
@@ -130,13 +151,10 @@ export class AnimationSequencer {
 	 * @param name Animation name
 	 * @param from Starting scale
 	 * @param to Ending scale
-	 * @param duration Duration in seconds
-	 * @param startTime When to start (default: 0)
-	 * @param easing Easing function (default: linear)
-	 */
-	scale(name: string, from: number, to: number, duration: number, startTime: number = 0, easing: (t: number) => number = EasingFunctions.linear): AnimationSequencer {
-		const animation = new ScaleAnimation(from, to, duration, easing);
-		this.addStep(name, animation, startTime);
+	*/
+	scale(name: string, from: number, to: number): AnimationSequencer {
+		const animation = new ScaleAnimation(from, to, this.lastDuration, this.lastEasing);
+		this.addStep(name, animation, this.lastStartTime);
 		return this;
 	}
 
@@ -209,9 +227,5 @@ export class AnimationSequencer {
 
 		this.steps.push(animationStep);
 		this.names.set(name, animationStep);
-	}
-
-	private getLastStartTime(): number {
-		return this.steps.length > 0 ? this.steps[this.steps.length - 1].startTime : 0;
 	}
 }

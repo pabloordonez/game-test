@@ -31,10 +31,16 @@ export class IntroScreen extends BaseScreen {
 
 		this.sequencer
 			// Phase 1: Logo and text fade in together (0-2s)
-			.fade('logoFade', 0, 1, 2, 0, EasingFunctions.easeIn)
-			.fade('titleFade', 0, 1, 2, 0, EasingFunctions.easeIn)
+			.at(0)
+			.for(2)
+			.easeWith(EasingFunctions.easeIn)
+			.fade('logoFade', 0, 1)
+			.fade('titleFade', 0, 1)
+
 			// Phase 2: "Press any key" prompt (appears at 2s, right after boxes complete)
-			.fade('pressKey', 0, 1, 1, 2, EasingFunctions.easeIn);
+			.at(2)
+			.for(1)
+			.fade('pressKey', 0, 1);
 	}
 
 	private startExpansionAnimation(): void {
@@ -62,11 +68,15 @@ export class IntroScreen extends BaseScreen {
 
 		// Movement animations for all 4 boxes (all start at t=0)
 		this.sequencer
-			.moveMultiple('movement', startPositions, targetPositions, 3, 0, EasingFunctions.easeOut)
-			.fade('logoFade', 1, 0, 3, 0, EasingFunctions.easeOut)
-			.scale('logoScale', 1, 2.5, 3, 0, EasingFunctions.easeOut)
-			.fade('titleFade', 1, 0, 2, 0, EasingFunctions.easeOut)
-			.fade('pressKey', 1, 0, 2, 0, EasingFunctions.easeOut);
+			.at(0)
+			.for(3)
+			.easeWith(EasingFunctions.easeOut)
+			.moveMultiple('movement', startPositions, targetPositions)
+			.fade('logoFade', 1, 0)
+			.scale('logoScale', 1, 2.5)
+			.for(2)
+			.fade('titleFade', 1, 0)
+			.fade('pressKey', 1, 0);
 
 		this.isExpanding = true;
 
