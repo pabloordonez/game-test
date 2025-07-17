@@ -95,7 +95,16 @@ export class InputSystem implements System {
 
         // Add components to bullet
         this.world.addComponent(bulletEntity.id, new PositionComponent(bulletEntity.id, bulletX, bulletY));
-        this.world.addComponent(bulletEntity.id, new MovementComponent(bulletEntity.id, weapon.bulletSpeed));
+
+        // Create movement component with proper parameters for bullets
+        const bulletMovement = new MovementComponent(
+            bulletEntity.id,
+            weapon.bulletSpeed, // speed
+            0, // acceleration (bullets don't accelerate)
+            0, // deceleration (bullets don't decelerate)
+            weapon.bulletSpeed // maxSpeed
+        );
+        this.world.addComponent(bulletEntity.id, bulletMovement);
 
         // Set bullet velocity (moving upward)
         const bulletPosition = this.world.getComponent(bulletEntity.id, 'PositionComponent') as PositionComponent;
@@ -113,6 +122,8 @@ export class InputSystem implements System {
 
         // Add weapon component for damage
         this.world.addComponent(bulletEntity.id, new WeaponComponent(bulletEntity.id, 0, weapon.bulletType, weapon.damage));
+
+        console.log('Bullet created with velocity:', bulletPosition?.velocityY, 'maxSpeed:', bulletMovement.maxSpeed);
     }
 
     private applyScreenBoundaries(position: PositionComponent): void {

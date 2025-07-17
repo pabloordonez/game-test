@@ -13,22 +13,16 @@ export class MovementSystem implements System {
     }
 
     update(deltaTime: number): void {
-        console.log('MovementSystem update, deltaTime:', deltaTime, 'entities:', this.entities.length);
-
         for (const entity of this.entities) {
             const position = this.world.getComponent(entity.id, 'PositionComponent') as PositionComponent;
             const movement = this.world.getComponent(entity.id, 'MovementComponent') as MovementComponent;
 
             if (!position || !movement) continue;
 
-            console.log('Entity', entity.id, 'position:', position.x, position.y, 'velocity:', position.velocityX, position.velocityY);
-
             // Apply velocity (deltaTime is in seconds, so multiply by 60 for 60 FPS equivalent)
             const timeScale = 60; // Scale to make movement feel responsive
             position.x += position.velocityX * deltaTime * timeScale;
             position.y += position.velocityY * deltaTime * timeScale;
-
-            console.log('Entity', entity.id, 'new position:', position.x, position.y);
 
             // Apply deceleration
             if (position.velocityX !== 0) {

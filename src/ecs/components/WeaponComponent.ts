@@ -25,6 +25,6 @@ export class WeaponComponent implements Component {
         this.lastFireTime = 0;
         this.isAutomatic = false;
         this.spreadAngle = 0;
-        this.bulletSpeed = 400;
+        this.bulletSpeed = 14;
     }
 }
