@@ -109,4 +109,29 @@ export class Canvas {
         this.width = width;
         this.height = height;
     }
+
+    // Canvas transformation methods for transitions
+    save(): void {
+        this.context.save();
+    }
+
+    restore(): void {
+        this.context.restore();
+    }
+
+    translate(x: number, y: number): void {
+        this.context.translate(x, y);
+    }
+
+    scale(x: number, y: number): void {
+        this.context.scale(x, y);
+    }
+
+    rotate(angle: number): void {
+        this.context.rotate(angle);
+    }
+
+    setGlobalAlpha(alpha: number): void {
+        this.context.globalAlpha = alpha;
+    }
 }

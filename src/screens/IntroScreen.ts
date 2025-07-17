@@ -1,7 +1,7 @@
 import { BaseScreen } from './Screen';
 import { Canvas } from '../core/Canvas';
 import { InputManager } from '../core/InputManager';
-import { ScreenType } from './Screen';
+import { ScreenType, TransitionType } from './Screen';
 import { AnimationSequencer, AlphaAnimation, MovementAnimation, ScaleAnimation, EasingFunctions } from '../animation';
 import { StarParticleSystem } from '../particles';
 import { Viewport } from '../utils/Viewport';
@@ -10,16 +10,6 @@ export class IntroScreen extends BaseScreen {
     private sequencer: AnimationSequencer;
     private starSystem: StarParticleSystem;
     private viewport: Viewport;
-    private logoAlpha: number = 0;
-    private textAlpha: number = 0;
-    private pressKeyAlpha: number = 0;
-    private boxPositions: Array<{x: number, y: number}> = [
-        {x: 380, y: 280}, // Top-left square (closer together)
-        {x: 420, y: 280}, // Top-right square
-        {x: 380, y: 320}, // Bottom-left square
-        {x: 420, y: 320}  // Bottom-right square
-    ];
-    private boxAlphas: number[] = [1, 1, 1, 1];
     private colors: string[] = ['#F14F21', '#7EB900', '#00A3EE', '#FEB800'];
     private isComplete: boolean = false;
 
@@ -155,11 +145,15 @@ export class IntroScreen extends BaseScreen {
         }
 
         // Check expansion animation completion (auto-transition to game)
-        if (this.isAnimating && this.sequencer.isComplete()) {
+        if (this.isAnimating && !this.isComplete && this.sequencer.isComplete()) {
             this.isComplete = true;
+            this.isAnimating = false; // Stop animation state
             console.log('Expansion animation completed - auto-transitioning to game');
-            // Automatically transition to game screen
-            this.requestScreenChange(ScreenType.GAME);
+            // Automatically transition to game screen with fade effect
+            this.requestScreenChange(ScreenType.GAME, {
+                type: TransitionType.FADE,
+                duration: 1.5
+            });
         }
     }
 
@@ -222,6 +216,11 @@ export class IntroScreen extends BaseScreen {
     }
 
     private renderMovingBoxes(canvas: Canvas): void {
+        // Don't render boxes after expansion is complete
+        if (this.isComplete) {
+            return;
+        }
+
         const centerX = this.viewport.getCenterX();
         const centerY = this.viewport.getCenterY();
 
@@ -240,11 +239,11 @@ export class IntroScreen extends BaseScreen {
             let alpha = 1;
             let scale = 1;
 
-            if (!this.isAnimating) {
+            if (!this.isAnimating && !this.isComplete) {
                 // Initial phase - use fade-in animations (indices 2-5)
                 const fadeInAlpha = this.sequencer.getAnimationValue(2 + i);
                 alpha = fadeInAlpha;
-                        } else {
+            } else {
                 // Expansion phase - use movement, fade-out, and scale animations
                 // During expansion, all animations run in parallel groups of 3
 
@@ -290,15 +289,7 @@ export class IntroScreen extends BaseScreen {
         }
     }
 
-    private requestScreenChange(screenType: ScreenType): void {
-        // This will be set by the Game class
-        if (this.onScreenChangeRequest) {
-            this.onScreenChangeRequest(screenType);
-        }
-    }
 
-    // Callback to be set by Game class
-    onScreenChangeRequest?: (screenType: ScreenType) => void;
 
     isAnimationComplete(): boolean {
         return this.isComplete;
