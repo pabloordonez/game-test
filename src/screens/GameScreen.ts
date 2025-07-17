@@ -157,16 +157,13 @@ export class GameScreen extends BaseScreen {
         this.health -= damage;
         if (this.health <= 0) {
             this.health = 0;
-            this.requestScreenChange(ScreenType.LOSE);
+            this.requestScreenChange(ScreenType.INTRO);
         }
     }
 
-    private requestScreenChange(screenType: ScreenType): void {
+    requestScreenChange(screenType: ScreenType): void {
         if (this.onScreenChangeRequest) {
             this.onScreenChangeRequest(screenType);
         }
     }
-
-    // Callback to be set by Game class
-    onScreenChangeRequest?: (screenType: ScreenType) => void;
 }

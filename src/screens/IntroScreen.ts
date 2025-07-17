@@ -2,296 +2,218 @@ import { BaseScreen } from './Screen';
 import { Canvas } from '../core/Canvas';
 import { InputManager } from '../core/InputManager';
 import { ScreenType, TransitionType } from './Screen';
-import { AnimationSequencer, AlphaAnimation, MovementAnimation, ScaleAnimation, EasingFunctions } from '../animation';
+import { AnimationSequencer, EasingFunctions } from '../animation';
 import { StarParticleSystem } from '../particles';
 import { Viewport } from '../utils/Viewport';
+import { Vector2 } from '../utils/Math';
 
 export class IntroScreen extends BaseScreen {
-    private sequencer: AnimationSequencer;
-    private starSystem: StarParticleSystem;
-    private viewport: Viewport;
-    private colors: string[] = ['#F14F21', '#7EB900', '#00A3EE', '#FEB800'];
-    private isComplete: boolean = false;
+	private sequencer: AnimationSequencer;
+	private starSystem: StarParticleSystem;
+	private viewport: Viewport;
+	private colors: string[];
+	private isComplete: boolean;
+	private isExpanding: boolean;
 
-    // Interactive state management
-    private isWaitingForInput: boolean = false;
-    private isAnimating: boolean = false;
-    private logoCompleted: boolean = false;
+	constructor() {
+		super();
+		this.isComplete = false;
+		this.isExpanding = false;
+		this.colors = ['#F14F21', '#7EB900', '#00A3EE', '#FEB800'];
+		this.viewport = new Viewport(800, 600); // Standard game viewport
+		this.sequencer = new AnimationSequencer();
+		this.starSystem = new StarParticleSystem(this.viewport.getCenterX(), this.viewport.getCenterY(), this.viewport.getWidth(), this.viewport.getHeight());
+		this.initializeAnimations();
+	}
 
-    constructor() {
-        super();
-        this.viewport = new Viewport(800, 600); // Standard game viewport
-        this.sequencer = new AnimationSequencer();
-        this.starSystem = new StarParticleSystem(
-            this.viewport.getCenterX(),
-            this.viewport.getCenterY(),
-            this.viewport.getWidth(),
-            this.viewport.getHeight()
-        );
-        this.initializeAnimations();
-    }
+	private initializeAnimations(): void {
+		console.log('Initializing initial logo animation...');
 
-    private initializeAnimations(): void {
-        console.log('Initializing initial logo animation...');
+		this.sequencer
+			// Phase 1: Logo and text fade in together (0-2s)
+			.fade('logoFade', 0, 1, 2, 0, EasingFunctions.easeIn)
+			.fade('titleFade', 0, 1, 2, 0, EasingFunctions.easeIn)
+			// Phase 2: "Press any key" prompt (appears at 2s, right after boxes complete)
+			.fade('pressKey', 0, 1, 1, 2, EasingFunctions.easeIn);
+	}
 
-        // Phase 1: Logo and text fade in (0-2 seconds)
-        const logoFadeIn = new AlphaAnimation(0, 1, 2, EasingFunctions.easeIn);
-        const textFadeIn = new AlphaAnimation(0, 1, 2, EasingFunctions.easeIn);
+	private startExpansionAnimation(): void {
+		console.log('Starting expansion animation...');
+		const centerX = this.viewport.getCenterX();
+		const centerY = this.viewport.getCenterY();
 
-        // Phase 1.5: Boxes fade in (1-2 seconds, overlapping with text)
-        const boxFadeIns: AlphaAnimation[] = [];
-        for (let i = 0; i < 4; i++) {
-            boxFadeIns.push(new AlphaAnimation(0, 1, 1, EasingFunctions.easeIn));
-        }
+		// Create new sequencer for expansion animation
+		this.sequencer = new AnimationSequencer();
 
-        // Phase 2: "Press any key" text appears after logo is complete (3 seconds)
-        const pressKeyFadeIn = new AlphaAnimation(0, 1, 1, EasingFunctions.easeIn);
+		// Positions for the 4 boxes
+		const startPositions: Vector2[] = [
+			{ x: centerX - 23, y: centerY - 23 }, // Top-left
+			{ x: centerX + 23, y: centerY - 23 }, // Top-right
+			{ x: centerX - 23, y: centerY + 23 }, // Bottom-left
+			{ x: centerX + 23, y: centerY + 23 } // Bottom-right
+		];
 
-        // Create initial sequence - just logo appearance and "press key" prompt
-        this.sequencer
-            .play(logoFadeIn, 0)                    // Logo fade in at 0s
-            .parallel(textFadeIn, 0)                // Text fade in at 0s (parallel)
-            .at(1, boxFadeIns[0])                   // Box 1 fade in at 1s
-            .parallel(boxFadeIns[1], 1)             // Box 2 fade in at 1s
-            .parallel(boxFadeIns[2], 1)             // Box 3 fade in at 1s
-            .parallel(boxFadeIns[3], 1)             // Box 4 fade in at 1s
-            .at(3, pressKeyFadeIn);                 // "Press any key" at 3s
+		const targetPositions: Vector2[] = [
+			{ x: 50, y: 50 }, // Top-left corner
+			{ x: 750, y: 50 }, // Top-right corner
+			{ x: 50, y: 550 }, // Bottom-left corner
+			{ x: 750, y: 550 } // Bottom-right corner
+		];
 
-        console.log('Initial logo animation initialized successfully');
-    }
+		// Movement animations for all 4 boxes (all start at t=0)
+		this.sequencer
+			.moveMultiple('movement', startPositions, targetPositions, 3, 0, EasingFunctions.easeOut)
+			.fade('logoFade', 1, 0, 3, 0, EasingFunctions.easeOut)
+			.scale('logoScale', 1, 2.5, 3, 0, EasingFunctions.easeOut)
+			.fade('titleFade', 1, 0, 2, 0, EasingFunctions.easeOut)
+			.fade('pressKey', 1, 0, 2, 0, EasingFunctions.easeOut);
 
-    private startExpansionAnimation(): void {
-        console.log('Starting expansion animation...');
+		this.isExpanding = true;
 
-        this.isAnimating = true;
-        this.isWaitingForInput = false;
+		console.log('Expansion animation started');
+	}
 
-        const centerX = this.viewport.getCenterX();
-        const centerY = this.viewport.getCenterY();
+	update(deltaTime: number): void {
+		if (!this.isActive) return;
 
-        // Create new sequencer for expansion animation
-        this.sequencer = new AnimationSequencer();
+		this.screenTime += deltaTime;
+		this.sequencer.update(deltaTime);
+		this.starSystem.update(deltaTime);
 
-        // Centered starting positions (current positions)
-        const startPositions = [
-            {x: centerX - 23, y: centerY - 23}, // Top-left square
-            {x: centerX + 23, y: centerY - 23}, // Top-right square
-            {x: centerX - 23, y: centerY + 23}, // Bottom-left square
-            {x: centerX + 23, y: centerY + 23}  // Bottom-right square
-        ];
+		// Check expansion animation completion (auto-transition to game)
+		if (this.isExpanding && !this.isComplete && this.sequencer.isComplete()) {
+			this.isExpanding = false;
+			this.isComplete = true;
+			this.requestScreenChange(ScreenType.GAME, { type: TransitionType.FADE, duration: 1.5 });
+		}
+	}
 
-        // Corner target positions
-        const targetPositions = [
-            {x: 50, y: 50},   // Top-left corner
-            {x: 750, y: 50},  // Top-right corner
-            {x: 50, y: 550},  // Bottom-left corner
-            {x: 750, y: 550}  // Bottom-right corner
-        ];
+	render(canvas: Canvas): void {
+		if (!this.isActive) return;
 
-        // Create expansion animations
-        const boxAnimations: MovementAnimation[] = [];
-        const boxAlphaAnimations: AlphaAnimation[] = [];
-        const boxScaleAnimations: ScaleAnimation[] = [];
+		// Clear canvas
+		canvas.clear();
 
-        for (let i = 0; i < startPositions.length; i++) {
-            const startPos = startPositions[i];
-            const endPos = targetPositions[i];
+		this.renderStarParticles(canvas);
+		this.renderWindowsLogo(canvas);
+		this.renderMovingBoxes(canvas);
 
-            boxAnimations.push(new MovementAnimation(
-                startPos.x, startPos.y, endPos.x, endPos.y,
-                3, EasingFunctions.easeOut
-            ));
+		// Draw appropriate prompt text
+		const centerX = this.viewport.getCenterX();
 
-            boxAlphaAnimations.push(new AlphaAnimation(1, 0, 3, EasingFunctions.easeOut));
-            boxScaleAnimations.push(new ScaleAnimation(1.0, 2.5, 3, EasingFunctions.easeOut));
-        }
+		// ✨ NEW ACCESS: Named animation access
+		const pressKeyAlpha = this.sequencer.getValue('pressKey');
+		if (pressKeyAlpha > 0) {
+			canvas.drawCenteredText('Press any key to start', centerX, 500, '24px Segoe UI', '#ffffff', pressKeyAlpha);
+		}
 
-        // Star particles start immediately with expansion
-        const starStart = new AlphaAnimation(0, 1, 0.5, EasingFunctions.easeIn);
+		// Note: No text shown during/after expansion - automatic transition
+	}
 
-        // Create expansion sequence
-        this.sequencer
-            .play(boxAnimations[0], 0)                // All animations start immediately
-            .parallel(boxAlphaAnimations[0], 0)
-            .parallel(boxScaleAnimations[0], 0)
-            .parallel(boxAnimations[1], 0)
-            .parallel(boxAlphaAnimations[1], 0)
-            .parallel(boxScaleAnimations[1], 0)
-            .parallel(boxAnimations[2], 0)
-            .parallel(boxAlphaAnimations[2], 0)
-            .parallel(boxScaleAnimations[2], 0)
-            .parallel(boxAnimations[3], 0)
-            .parallel(boxAlphaAnimations[3], 0)
-            .parallel(boxScaleAnimations[3], 0)
-            .parallel(starStart, 0);                  // Stars start with expansion
+	private renderStarParticles(canvas: Canvas): void {
+		const particles = this.starSystem.getParticles();
 
-        console.log('Expansion animation started');
-    }
+		for (const particle of particles) {
+			if (particle.alpha > 0) {
+				// Use dynamic radius from particle (grows over time and distance)
+				canvas.drawCircle(particle.x, particle.y, particle.radius, particle.color, particle.alpha);
+			}
+		}
+	}
 
-    update(deltaTime: number): void {
-        if (!this.isActive) return;
+	private renderWindowsLogo(canvas: Canvas): void {
+		const centerX = this.viewport.getCenterX();
+		const titleY = this.viewport.getCenterY() - 120; // Move "Stellar Breach" much higher
+		const logoY = this.viewport.getCenterY() - 70; // Keep "Microsoft" above the squares
 
-        this.screenTime += deltaTime;
-        this.sequencer.update(deltaTime);
+		const logoAlpha = this.sequencer.getValue('logoFade');
+		const textAlpha = this.sequencer.getValue('titleFade');
 
-        // Always update stars for continuous effect
-        this.starSystem.update(deltaTime);
+		// Draw title first (well above logo)
+		if (textAlpha > 0) {
+			canvas.drawCenteredText('Stellar Breach', centerX, titleY, '28px Segoe UI', '#cccccc', textAlpha);
+		}
 
-        // Check initial logo completion (ready for user input)
-        if (!this.logoCompleted && this.sequencer.isComplete()) {
-            this.logoCompleted = true;
-            this.isWaitingForInput = true;
-            console.log('Logo completed - waiting for user input');
-        }
+		// Draw logo below title but above squares
+		if (logoAlpha > 0) {
+			canvas.drawCenteredText('Microsoft', centerX, logoY, '24px Segoe UI', '#ffffff', logoAlpha);
+		}
+	}
 
-        // Check expansion animation completion (auto-transition to game)
-        if (this.isAnimating && !this.isComplete && this.sequencer.isComplete()) {
-            this.isComplete = true;
-            this.isAnimating = false; // Stop animation state
-            console.log('Expansion animation completed - auto-transitioning to game');
-            // Automatically transition to game screen with fade effect
-            this.requestScreenChange(ScreenType.GAME, {
-                type: TransitionType.FADE,
-                duration: 1.5
-            });
-        }
-    }
+	private renderMovingBoxes(canvas: Canvas): void {
+		// Don't render boxes after expansion is complete
+		if (this.isComplete) return;
 
-    render(canvas: Canvas): void {
-        if (!this.isActive) return;
+		const centerX = this.viewport.getCenterX();
+		const centerY = this.viewport.getCenterY();
 
-        // Clear canvas
-        canvas.clear();
+		// Centered box positions
+		const centeredBoxPositions = [
+			{ x: centerX - 23, y: centerY - 23 }, // Top-left square
+			{ x: centerX + 23, y: centerY - 23 }, // Top-right square
+			{ x: centerX - 23, y: centerY + 23 }, // Bottom-left square
+			{ x: centerX + 23, y: centerY + 23 } // Bottom-right square
+		];
 
-        // Draw star particles (deep space effect)
-        this.renderStarParticles(canvas);
+		for (let i = 0; i < 4; i++) {
+			const color = this.colors[i];
 
-        // Draw Windows logo
-        this.renderWindowsLogo(canvas);
+			let position = centeredBoxPositions[i];
+			let alpha = 1;
+			let scale = 1;
 
-        // Draw moving boxes
-        this.renderMovingBoxes(canvas);
+			if (this.isExpanding) {
+				const movements = this.sequencer.getAnimation(`movement.${i}`);
+				if (movements && (movements as any).getPosition) {
+					position = (movements as any).getPosition();
+				}
+				scale = this.sequencer.getValue('logoScale');
+			}
 
-        // Draw appropriate prompt text
-        const centerX = this.viewport.getCenterX();
-        if (this.isWaitingForInput) {
-            // Show "press key to start" when waiting for user to trigger expansion
-            const pressKeyAlpha = this.sequencer.getAnimationValue(4); // Animation index 4 is the press key fade-in
-            if (pressKeyAlpha > 0) {
-                canvas.drawCenteredText('Press any key to start', centerX, 500, '24px Arial', '#ffffff', pressKeyAlpha);
-            }
-        }
-        // Note: No text shown during/after expansion - automatic transition
-    }
+			// Reuse single animation values for all boxes
+			alpha = this.sequencer.getValue('logoFade');
+			if (alpha > 0) {
+				// Calculate scaled size
+				const size = 40 * scale;
+				const halfSize = size / 2;
 
-    private renderStarParticles(canvas: Canvas): void {
-        const particles = this.starSystem.getParticles();
+				// Draw squares that form the Windows symbol (scaled)
+				canvas.drawRect(position.x - halfSize, position.y - halfSize, size, size, color, alpha);
+			}
+		}
+	}
 
-        for (const particle of particles) {
-            if (particle.alpha > 0) {
-                // Use dynamic radius from particle (grows over time and distance)
-                canvas.drawCircle(particle.x, particle.y, particle.radius, particle.color, particle.alpha);
-            }
-        }
-    }
+	handleInput(inputManager: InputManager): void {
+		if (!this.isActive) return;
 
-    private renderWindowsLogo(canvas: Canvas): void {
-        const centerX = this.viewport.getCenterX();
-        const titleY = this.viewport.getCenterY() - 120; // Move "Stellar Breach" much higher
-        const logoY = this.viewport.getCenterY() - 70;   // Keep "Microsoft" above the squares
+		// Check for any key press - expanded detection
+		const anyKeyPressed =
+			inputManager.isMoveLeft() ||
+			inputManager.isMoveRight() ||
+			inputManager.isFire() ||
+			inputManager.isPause() ||
+			inputManager.isKeyPressed('Space') ||
+			inputManager.isKeyPressed('Enter') ||
+			inputManager.isKeyPressed('KeyA') ||
+			inputManager.isKeyPressed('KeyD') ||
+			inputManager.isKeyPressed('KeyW') ||
+			inputManager.isKeyPressed('KeyS') ||
+			inputManager.isKeyPressed('ArrowLeft') ||
+			inputManager.isKeyPressed('ArrowRight') ||
+			inputManager.isKeyPressed('ArrowUp') ||
+			inputManager.isKeyPressed('ArrowDown') ||
+			inputManager.isKeyPressed('KeyZ') ||
+			inputManager.isKeyPressed('KeyX') ||
+			inputManager.isKeyPressed('Escape');
 
-        // Get animation values from sequencer
-        const logoAlpha = this.sequencer.getAnimationValue(0); // Logo fade animation
-        const textAlpha = this.sequencer.getAnimationValue(1); // Text fade animation
+		if (anyKeyPressed) {
+			// User pressed key to start expansion animation (only handles initial trigger)
+			console.log('User triggered expansion animation');
+			this.startExpansionAnimation();
+		}
+	}
 
-        // Draw title first (well above logo)
-        if (textAlpha > 0) {
-            canvas.drawCenteredText('Stellar Breach', centerX, titleY, '28px Arial', '#cccccc', textAlpha);
-        }
-
-        // Draw logo below title but above squares
-        if (logoAlpha > 0) {
-            canvas.drawCenteredText('Microsoft', centerX, logoY, '24px Arial', '#ffffff', logoAlpha);
-        }
-    }
-
-    private renderMovingBoxes(canvas: Canvas): void {
-        // Don't render boxes after expansion is complete
-        if (this.isComplete) {
-            return;
-        }
-
-        const centerX = this.viewport.getCenterX();
-        const centerY = this.viewport.getCenterY();
-
-        // Centered box positions
-        const centeredBoxPositions = [
-            {x: centerX - 23, y: centerY - 23}, // Top-left square
-            {x: centerX + 23, y: centerY - 23}, // Top-right square
-            {x: centerX - 23, y: centerY + 23}, // Bottom-left square
-            {x: centerX + 23, y: centerY + 23}  // Bottom-right square
-        ];
-
-        for (let i = 0; i < 4; i++) {
-            const color = this.colors[i];
-
-            let position = centeredBoxPositions[i];
-            let alpha = 1;
-            let scale = 1;
-
-            if (!this.isAnimating && !this.isComplete) {
-                // Initial phase - use fade-in animations (indices 2-5)
-                const fadeInAlpha = this.sequencer.getAnimationValue(2 + i);
-                alpha = fadeInAlpha;
-            } else {
-                // Expansion phase - use movement, fade-out, and scale animations
-                // During expansion, all animations run in parallel groups of 3
-
-                // Movement animations: indices 0, 3, 6, 9
-                const moveIndex = i * 3;
-                const moveAnimation = this.sequencer.getAnimation(moveIndex) as MovementAnimation;
-                if (moveAnimation && moveAnimation.getPosition) {
-                    position = moveAnimation.getPosition();
-                }
-
-                // Fade-out animations: indices 1, 4, 7, 10
-                const fadeIndex = i * 3 + 1;
-                alpha = this.sequencer.getAnimationValue(fadeIndex);
-
-                // Scale animations: indices 2, 5, 8, 11
-                const scaleIndex = i * 3 + 2;
-                scale = this.sequencer.getAnimationValue(scaleIndex);
-            }
-
-            if (alpha > 0) {
-                // Calculate scaled size
-                const size = 40 * scale;
-                const halfSize = size / 2;
-
-                // Draw squares that form the Windows symbol (scaled)
-                canvas.drawRect(position.x - halfSize, position.y - halfSize, size, size, color, alpha);
-            }
-        }
-    }
-
-    handleInput(inputManager: InputManager): void {
-        if (!this.isActive) return;
-
-        // Check for any key press
-        const anyKeyPressed = inputManager.isMoveLeft() || inputManager.isMoveRight() ||
-                             inputManager.isFire() || inputManager.isPause() ||
-                             inputManager.isKeyPressed('Space') || inputManager.isKeyPressed('Enter');
-
-        if (anyKeyPressed && this.isWaitingForInput) {
-            // User pressed key to start expansion animation (only handles initial trigger)
-            console.log('User triggered expansion animation');
-            this.startExpansionAnimation();
-        }
-    }
-
-
-
-    isAnimationComplete(): boolean {
-        return this.isComplete;
-    }
+	isAnimationComplete(): boolean {
+		return this.isComplete;
+	}
 }

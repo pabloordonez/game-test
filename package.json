@@ -4,6 +4,8 @@
   "description": "A sci-fi vertical-scrolling shooter game combining Arkanoid and 1943 mechanics",
   "main": "dist/main.js",
   "scripts": {
+    "prestart": "npm i",
+    "start": "vite",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",

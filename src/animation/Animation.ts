@@ -44,6 +44,10 @@ export abstract class Animation {
     setActive(active: boolean): void {
         this.isActive = active;
     }
+
+    getDuration(): number {
+        return this.duration;
+    }
 }
 
 export class ColorAnimation extends Animation {

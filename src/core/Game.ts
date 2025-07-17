@@ -1,11 +1,10 @@
 import { Canvas } from './Canvas';
 import { GameLoop } from './GameLoop';
+import { Screen, ScreenType, TransitionConfig, TransitionCapable, TransitionType } from '../screens/Screen';
+import { IntroScreen } from '../screens/IntroScreen';
+import { GameScreen } from '../screens/GameScreen';
 import { World } from '../ecs/World';
 import { InputManager } from './InputManager';
-import { Screen, ScreenType, TransitionConfig, TransitionCapable, TransitionState, TransitionType } from '../screens/Screen';
-import { IntroScreen } from '../screens/IntroScreen';
-import { MenuScreen } from '../screens/MenuScreen';
-import { GameScreen } from '../screens/GameScreen';
 
 export class Game {
     private canvas: Canvas;
@@ -64,17 +63,14 @@ export class Game {
     private initializeScreens(): void {
         // Create screens
         const introScreen = new IntroScreen();
-        const menuScreen = new MenuScreen();
         const gameScreen = new GameScreen(this.world, this.inputManager);
 
         // Set up screen change callbacks with transition support
         introScreen.setScreenChangeCallback(this.handleScreenChangeWithTransition.bind(this));
-        menuScreen.setScreenChangeCallback(this.handleScreenChangeWithTransition.bind(this));
         gameScreen.setScreenChangeCallback(this.handleScreenChangeWithTransition.bind(this));
 
         // Store screens
         this.screens.set(ScreenType.INTRO, introScreen);
-        this.screens.set(ScreenType.MENU, menuScreen);
         this.screens.set(ScreenType.GAME, gameScreen);
     }
 
