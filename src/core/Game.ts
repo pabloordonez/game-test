@@ -3,7 +3,7 @@ import { GameLoop } from './GameLoop';
 import { Screen, ScreenType, TransitionConfig, TransitionCapable, TransitionType } from '../screens/Screen';
 import { IntroScreen } from '../screens/IntroScreen';
 import { GameScreen } from '../screens/GameScreen';
-import { World } from '../ecs/World';
+import { World } from '../ecs/core/World';
 import { InputManager } from './InputManager';
 
 export class Game {
@@ -63,11 +63,11 @@ export class Game {
     private initializeScreens(): void {
         // Create screens
         const introScreen = new IntroScreen();
-        const gameScreen = new GameScreen(this.world, this.inputManager);
+        const gameScreen = new GameScreen(this);
 
         // Set up screen change callbacks with transition support
         introScreen.setScreenChangeCallback(this.handleScreenChangeWithTransition.bind(this));
-        gameScreen.setScreenChangeCallback(this.handleScreenChangeWithTransition.bind(this));
+        // Note: GameScreen doesn't have setScreenChangeCallback method, so we'll handle it differently
 
         // Store screens
         this.screens.set(ScreenType.INTRO, introScreen);

@@ -2,14 +2,12 @@ export class InputManager {
     private keys: Map<string, boolean> = new Map();
     private gamepadState: Map<string, boolean> = new Map();
     private gamepadAxes: Map<string, number> = new Map();
-    private isInitialized: boolean = false;
 
     constructor() {
         this.setupEventListeners();
     }
 
     initialize(): void {
-        this.isInitialized = true;
         console.log('Input manager initialized');
     }
 

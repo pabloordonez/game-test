@@ -1,169 +1,98 @@
-import { BaseScreen } from './Screen';
-import { Canvas } from '../core/Canvas';
+import { Screen } from './Screen';
+import { Game } from '../core/Game';
 import { InputManager } from '../core/InputManager';
-import { ScreenType } from './Screen';
-import { World } from '../ecs/World';
+import { Canvas } from '../core/Canvas';
+import { World } from '../ecs/core/World';
+import { MovementSystem } from '../ecs/systems/MovementSystem';
+import { InputSystem } from '../ecs/systems/InputSystem';
+import { CollisionSystem } from '../ecs/systems/CollisionSystem';
+import { RenderingSystem } from '../ecs/systems/RenderingSystem';
+import { HealthSystem } from '../ecs/systems/HealthSystem';
+import { EffectSystem } from '../ecs/systems/EffectSystem';
+import { Ship } from '../ecs/entities/Ship';
+import { Block } from '../ecs/entities/Block';
 
-export class GameScreen extends BaseScreen {
+export class GameScreen implements Screen {
     private world: World;
     private inputManager: InputManager;
-    private score: number = 0;
-    private health: number = 100;
-    private isPaused: boolean = false;
+    private systems: any[] = [];
+    private renderingSystem: RenderingSystem | null = null;
 
-    constructor(world: World, inputManager: InputManager) {
-        super();
-        this.world = world;
-        this.inputManager = inputManager;
+    constructor(game: Game) {
+        this.world = new World();
+        this.inputManager = game.getInputManager();
+        this.setupSystems();
+        this.createGameWorld();
+    }
+
+    private setupSystems(): void {
+        // Create and register systems
+        const movementSystem = new MovementSystem(this.world);
+        const inputSystem = new InputSystem(this.world, this.inputManager);
+        const collisionSystem = new CollisionSystem(this.world);
+        const healthSystem = new HealthSystem(this.world);
+        const effectSystem = new EffectSystem(this.world);
+
+        this.systems = [
+            movementSystem,
+            inputSystem,
+            collisionSystem,
+            healthSystem,
+            effectSystem
+        ];
+
+        // Register systems with the world
+        this.systems.forEach(system => {
+            this.world.registerSystem(system);
+        });
+    }
+
+    private createGameWorld(): void {
+        // Create ship
+        const ship = Ship.create(this.world, 400, 550);
+        console.log('Ship created with ID:', ship.id);
+
+        // Create some blocks
+        for (let i = 0; i < 5; i++) {
+            const block = Block.create(this.world, 100 + i * 150, 100);
+            console.log('Block created with ID:', block.id);
+        }
     }
 
     update(deltaTime: number): void {
-        if (!this.isActive || this.isPaused) return;
-
-        this.screenTime += deltaTime;
-
-        // Update ECS world
         this.world.updateSystems(deltaTime);
-
-        // Handle gameplay input
-        this.handleGameplayInput();
     }
 
     render(canvas: Canvas): void {
-        if (!this.isActive) return;
-
         // Clear canvas
         canvas.clear();
 
-        // Render game world
+        // Create and register rendering system if not already done
+        if (!this.renderingSystem) {
+            this.renderingSystem = new RenderingSystem(this.world, canvas);
+            this.world.registerSystem(this.renderingSystem);
+        } else {
+            // Update the canvas reference in case it changed
+            (this.renderingSystem as any).canvas = canvas;
+        }
+
+        // Use the world's render method which will call the rendering system
         this.world.render(canvas);
-
-        // Render UI
-        this.renderUI(canvas);
-
-        // Render pause overlay if paused
-        if (this.isPaused) {
-            this.renderPauseOverlay(canvas);
-        }
     }
 
-    handleInput(inputManager: InputManager): void {
-        if (!this.isActive) return;
-
-        // Handle pause
-        if (inputManager.isPause()) {
-            this.togglePause();
-        }
-
-        // Handle gameplay input only when not paused
-        if (!this.isPaused) {
-            this.handleGameplayInput();
-        }
+    renderWithTransition(canvas: Canvas): void {
+        this.render(canvas);
     }
 
-    private handleGameplayInput(): void {
-        // Handle movement
-        if (this.inputManager.isMoveLeft()) {
-            // TODO: Move ship left
-            console.log('Move left');
-        }
-
-        if (this.inputManager.isMoveRight()) {
-            // TODO: Move ship right
-            console.log('Move right');
-        }
-
-        // Handle firing
-        if (this.inputManager.isFire()) {
-            // TODO: Fire bullet
-            console.log('Fire');
-        }
-    }
-
-    private renderUI(canvas: Canvas): void {
-        // Render score
-        canvas.drawText(`Score: ${this.score}`, 50, 30, '20px Arial', '#ffffff');
-
-        // Render health
-        canvas.drawText(`Health: ${this.health}`, 50, 60, '20px Arial', '#ffffff');
-
-        // Render game time
-        const minutes = Math.floor(this.screenTime / 60);
-        const seconds = Math.floor(this.screenTime % 60);
-        canvas.drawText(`Time: ${minutes}:${seconds.toString().padStart(2, '0')}`, 50, 90, '20px Arial', '#ffffff');
-    }
-
-    private renderPauseOverlay(canvas: Canvas): void {
-        // Semi-transparent overlay
-        canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), 'rgba(0, 0, 0, 0.5)');
-
-        // Pause text
-        canvas.drawText('PAUSED', 400, 300, '48px Arial', '#ffffff');
-        canvas.drawText('Press ESC to resume', 400, 350, '24px Arial', '#cccccc');
-    }
-
-    private togglePause(): void {
-        this.isPaused = !this.isPaused;
-        console.log(this.isPaused ? 'Game paused' : 'Game resumed');
+    handleInput(_inputManager: InputManager): void {
+        // Input is handled by InputSystem
     }
 
     onEnter(): void {
-        super.onEnter();
-        console.log('Entering game screen');
-
-        // Initialize game world if needed
-        if (this.world.getEntityCount() === 0) {
-            this.initializeGameWorld();
-        }
+        console.log('Entering GameScreen');
     }
 
     onExit(): void {
-        super.onExit();
-        console.log('Exiting game screen');
-    }
-
-    private initializeGameWorld(): void {
-        console.log('Initializing game world...');
-
-        // TODO: Create initial game entities
-        // - Ship entity
-        // - Initial blocks
-        // - Background elements
-
-        console.log('Game world initialized');
-    }
-
-    getWorld(): World {
-        return this.world;
-    }
-
-    isGamePaused(): boolean {
-        return this.isPaused;
-    }
-
-    getScore(): number {
-        return this.score;
-    }
-
-    getHealth(): number {
-        return this.health;
-    }
-
-    addScore(points: number): void {
-        this.score += points;
-    }
-
-    takeDamage(damage: number): void {
-        this.health -= damage;
-        if (this.health <= 0) {
-            this.health = 0;
-            this.requestScreenChange(ScreenType.INTRO);
-        }
-    }
-
-    requestScreenChange(screenType: ScreenType): void {
-        if (this.onScreenChangeRequest) {
-            this.onScreenChangeRequest(screenType);
-        }
+        console.log('Exiting GameScreen');
     }
 }

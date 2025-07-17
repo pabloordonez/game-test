@@ -39,9 +39,8 @@ export class GameLoop {
         requestAnimationFrame(() => this.loop());
     }
 
-    update(deltaTime: number): void {
-        // This will be overridden by the Game class
-        // deltaTime is in seconds
+    update(_deltaTime: number): void {
+        // This method is overridden by the Game class
     }
 
     render(): void {

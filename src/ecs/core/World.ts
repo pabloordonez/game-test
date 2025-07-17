@@ -8,7 +8,6 @@ export class World {
     private components: Map<string, Map<number, Component>> = new Map();
     private systems: SystemRegistration[] = [];
     private nextEntityId: number = 1;
-    private isInitialized: boolean = false;
 
     constructor() {
         // Initialize component storage
@@ -16,7 +15,6 @@ export class World {
     }
 
     initialize(): void {
-        this.isInitialized = true;
         console.log('ECS World initialized');
     }
 
@@ -37,7 +35,7 @@ export class World {
             this.entities.delete(entityId);
 
             // Remove all components for this entity
-            for (const [componentType, componentMap] of this.components) {
+            for (const [, componentMap] of this.components) {
                 componentMap.delete(entityId);
             }
 
@@ -70,7 +68,7 @@ export class World {
     getComponents(entityId: number): Component[] {
         const components: Component[] = [];
 
-        for (const [componentType, componentMap] of this.components) {
+        for (const componentMap of this.components.values()) {
             const component = componentMap.get(entityId);
             if (component) {
                 components.push(component);
@@ -125,6 +123,11 @@ export class World {
                 entityList.push(entity);
             }
         }
+
+        // Update the system's entity list
+        if (system.setEntities) {
+            system.setEntities(entityList);
+        }
     }
 
     private updateSystemEntityLists(): void {
@@ -140,8 +143,17 @@ export class World {
     }
 
     render(canvas: any): void {
-        // For now, just a placeholder
-        // Rendering will be handled by specific rendering systems
+        // Find and call the rendering system
+        for (const registration of this.systems) {
+            const system = registration.system as any;
+            if (system.render && system.constructor.name === 'RenderingSystem') {
+                // Update the canvas reference for the rendering system
+                if (system.canvas !== canvas) {
+                    system.canvas = canvas;
+                }
+                system.render();
+            }
+        }
     }
 
     getEntityCount(): number {
@@ -150,5 +162,18 @@ export class World {
 
     getSystemCount(): number {
         return this.systems.length;
+    }
+
+    // Helper method to get all entities (for debugging)
+    getAllEntities(): Entity[] {
+        return Array.from(this.entities.values());
+    }
+
+    // Helper method to clear all entities (for level reset)
+    clearAllEntities(): void {
+        this.entities.clear();
+        this.components.clear();
+        this.nextEntityId = 1;
+        this.updateSystemEntityLists();
     }
 }
