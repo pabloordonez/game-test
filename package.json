@@ -1,0 +1,20 @@
+{
+  "name": "stellar-breach",
+  "version": "1.0.0",
+  "description": "A sci-fi vertical-scrolling shooter game combining Arkanoid and 1943 mechanics",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^4.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "keywords": ["game", "typescript", "canvas", "ecs"],
+  "author": "Game Developer",
+  "license": "MIT"
+}

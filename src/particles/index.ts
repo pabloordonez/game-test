@@ -1,0 +1,1 @@
+export { StarParticleSystem } from "./StarParticleSystem";

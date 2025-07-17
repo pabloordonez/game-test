@@ -4,7 +4,7 @@
 
 ### 1.1 Game Concept
 
-A vertical-scrolling shooter game that combines elements of Arkanoid and the NES game 1943. The game features a ship that moves horizontally while advancing upward through levels composed of destructible colored blocks.
+A vertical-scrolling shooter game that combines elements of Arkanoid and the NES game 1943. The game features a ship that moves horizontally while advancing upward through levels composed of destructible colored blocks in a sci-fi space setting.
 
 ### 1.2 Technical Stack
 
@@ -26,10 +26,11 @@ A vertical-scrolling shooter game that combines elements of Arkanoid and the NES
 
 ### 2.2 Intro Animation
 
-- Display Windows logo with four colored boxes
-- Animate boxes moving to canvas corners
-- Transition from intro to level generation based on box movement
-- Create initial level layout from the animated transition
+- **Phase 1**: Microsoft logo and "Stellar Breach" text fade in
+- **Phase 2**: Windows logo squares move to corners while fading out
+- **Phase 3**: Background stars/particles move from center to corners (deep space effect)
+- **Phase 4**: "Press any key" text fades in
+- **Animation System**: Reusable animation framework for color, movement, and shape animations
 
 ## 3. Core Gameplay Mechanics
 
@@ -139,7 +140,16 @@ Random upgrades dropped from destroyed blocks:
 - **Performance Scaling**: Adjust visual quality based on device capabilities
 - **Orientation Support**: Landscape and portrait mode handling
 
-### 6.6 Special Effects System
+### 6.6 Animation System
+
+- **Animation Framework**: Reusable animation system with configurable duration and easing
+- **Animation Types**: Color, movement, scale, rotation, and alpha animations
+- **Easing Functions**: Linear, ease-in, ease-out, ease-in-out, bounce, elastic, and back interpolation
+- **Animation Sequencer**: Fluent interface for timing and sequencing animations
+- **Particle Systems**: Dedicated particle system with continuous star effects for deep space
+- **Performance**: Efficient animation updates with delta time integration
+
+### 6.7 Special Effects System
 
 - **Pixel Shader Effects**: Post-processing effects for explosions and laser lights
 - **Particle Systems**: Advanced particle effects with GPU acceleration
@@ -156,14 +166,18 @@ Random upgrades dropped from destroyed blocks:
 
 ## 7. Game States
 
-### 7.1 State Management
+### 7.1 Screen-Based Architecture
 
-- **Intro State**: Windows logo animation
-- **Menu State**: Title and options screens
-- **Play State**: Active gameplay
-- **Pause State**: Game paused functionality
-- **Win State**: Level completion celebration
-- **Lose State**: Game over with restart options
+- **Screen System**: Game acts as a container for different screens
+- **Screen States**: Each screen represents a different game state (Intro, Menu, Game, Pause, etc.)
+- **Screen Logic**: Each screen manages its own rendering and update logic
+- **State Transitions**: Game manages transitions between screens
+- **Screen Types**:
+  - **Intro Screen**: Windows logo animation and level generation
+  - **Menu Screen**: Title and options without ECS
+  - **Game Screen**: Main gameplay with full ECS integration
+  - **Pause Screen**: Overlay screen during gameplay
+  - **Win/Lose Screens**: End game states
 
 ### 7.2 Input Handling
 
@@ -182,14 +196,24 @@ Random upgrades dropped from destroyed blocks:
 src/
 ├── core/
 │   ├── Game.ts
-│   ├── GameState.ts
+│   ├── GameLoop.ts
+│   ├── Canvas.ts
 │   ├── InputManager.ts
 │   └── TimeSystem.ts
+├── screens/
+│   ├── Screen.ts
+│   ├── IntroScreen.ts
+│   ├── MenuScreen.ts
+│   ├── GameScreen.ts
+│   ├── PauseScreen.ts
+│   ├── WinScreen.ts
+│   └── LoseScreen.ts
 ├── ecs/
 │   ├── Entity.ts
 │   ├── Component.ts
 │   ├── System.ts
-│   └── ComponentPool.ts
+│   ├── SystemRegistration.ts
+│   └── World.ts
 ├── entities/
 │   ├── Ship.ts
 │   ├── Bullet.ts
@@ -209,6 +233,15 @@ src/
 │   ├── TouchInputManager.ts
 │   ├── MobileOptimizer.ts
 │   └── ResponsiveUI.ts
+├── animation/
+│   ├── Animation.ts
+│   ├── AnimationSystem.ts
+│   ├── AnimationSequencer.ts
+│   ├── EasingFunctions.ts
+│   └── AnimationSequence.ts
+├── particles/
+│   ├── StarParticleSystem.ts
+│   └── index.ts
 ├── effects/
 │   ├── ShaderEffects.ts
 │   ├── PostProcessing.ts

@@ -2,7 +2,7 @@
 
 ## 1.1. Overview
 
-This document provides detailed implementation tasks for developing the Arkanoid/1943 hybrid game. Each phase contains specific requirements, technical specifications, and acceptance criteria for the senior developer.
+This document provides detailed implementation tasks for developing the Stellar Breach sci-fi shooter game. Each phase contains specific requirements, technical specifications, and acceptance criteria for the senior developer.
 
 ---
 
@@ -375,6 +375,188 @@ interface ResponsiveUI {
 - [ ] Battery optimization reduces power consumption
 - [ ] Quality adjusts based on device performance
 - [ ] Orientation changes handled smoothly
+
+---
+
+### 1.2.6. Task 1.6: Animation System Implementation
+**Priority**: High
+
+#### 1.2.6.1. Requirements
+
+- Create reusable animation framework
+- Implement animation types (color, movement, scale, alpha)
+- Add easing functions for smooth interpolation
+- Create animation sequences for complex animations
+- Integrate animation system with intro screen
+- Implement deep space background effect
+
+#### 1.2.6.2. Technical Specifications
+
+```typescript
+// Animation base class
+interface Animation {
+  startValue: number;
+  endValue: number;
+  duration: number;
+  currentTime: number;
+  easing: EasingFunction;
+
+  update(deltaTime: number): void;
+  getValue(): number;
+  isComplete(): boolean;
+  reset(): void;
+}
+
+// Animation types
+interface ColorAnimation extends Animation {
+  startColor: string;
+  endColor: string;
+  getColor(): string;
+}
+
+interface MovementAnimation extends Animation {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  getPosition(): {x: number, y: number};
+}
+
+interface AlphaAnimation extends Animation {
+  getAlpha(): number;
+}
+
+// Easing functions
+type EasingFunction = (t: number) => number;
+
+interface EasingFunctions {
+  linear(t: number): number;
+  easeIn(t: number): number;
+  easeOut(t: number): number;
+  easeInOut(t: number): number;
+  easeBack(t: number): number;
+  easeBounce(t: number): number;
+  easeElastic(t: number): number;
+}
+
+// Animation sequencer with fluent interface
+interface AnimationSequencer {
+  play(animation: Animation, startTime?: number): AnimationSequencer;
+  then(animation: Animation, delay?: number): AnimationSequencer;
+  parallel(animation: Animation, startTime?: number): AnimationSequencer;
+  at(startTime: number, animation: Animation): AnimationSequencer;
+  update(deltaTime: number): void;
+  isComplete(): boolean;
+}
+
+// Star particle system
+interface StarParticle {
+  x: number;
+  y: number;
+  alpha: number;
+  speed: number;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
+interface StarParticleSystem {
+  update(deltaTime: number): void;
+  getParticles(): StarParticle[];
+  setSpawnRate(rate: number): void;
+  clear(): void;
+}
+```
+
+#### 1.2.6.3. Acceptance Criteria
+
+- [ ] Animation framework is reusable across the game
+- [ ] Different animation types work correctly
+- [ ] Easing functions provide smooth interpolation
+- [ ] Animation sequences chain properly
+- [ ] Intro screen uses new animation system
+- [ ] Deep space background effect works
+- [ ] Performance is optimized for smooth animations
+
+---
+
+### 1.2.7. Task 1.7: Screen-Based Architecture Implementation
+**Priority**: Critical
+
+#### 1.2.6.1. Requirements
+
+- Create base Screen class with common interface
+- Implement IntroScreen with Windows logo animation
+- Implement MenuScreen with basic menu functionality
+- Implement GameScreen with ECS integration
+- Create screen transition system
+- Refactor Game class to act as screen manager
+
+#### 1.2.6.2. Technical Specifications
+
+```typescript
+// Base Screen interface
+interface Screen {
+  update(deltaTime: number): void;
+  render(canvas: Canvas): void;
+  onEnter(): void;
+  onExit(): void;
+  handleInput(inputManager: InputManager): void;
+}
+
+// Screen manager
+interface ScreenManager {
+  changeScreen(screenType: ScreenType): void;
+  getCurrentScreen(): Screen;
+  update(deltaTime: number): void;
+  render(canvas: Canvas): void;
+}
+
+// Screen implementations
+class IntroScreen implements Screen {
+  private animationTime: number = 0;
+  private isComplete: boolean = false;
+
+  update(deltaTime: number): void;
+  render(canvas: Canvas): void;
+  onEnter(): void;
+  onExit(): void;
+  handleInput(inputManager: InputManager): void;
+}
+
+class MenuScreen implements Screen {
+  private selectedOption: number = 0;
+  private menuOptions: string[] = ['Start Game', 'Options', 'Exit'];
+
+  update(deltaTime: number): void;
+  render(canvas: Canvas): void;
+  onEnter(): void;
+  onExit(): void;
+  handleInput(inputManager: InputManager): void;
+}
+
+class GameScreen implements Screen {
+  private world: World;
+  private inputManager: InputManager;
+
+  update(deltaTime: number): void;
+  render(canvas: Canvas): void;
+  onEnter(): void;
+  onExit(): void;
+  handleInput(inputManager: InputManager): void;
+  getWorld(): World;
+}
+```
+
+#### 1.2.6.3. Acceptance Criteria
+
+- [ ] Base Screen class provides common interface
+- [ ] IntroScreen animates Windows logo correctly
+- [ ] MenuScreen displays and navigates menu options
+- [ ] GameScreen integrates with ECS world
+- [ ] Screen transitions work smoothly
+- [ ] Game class acts as screen manager
+- [ ] Each screen manages its own logic independently
 
 ---
 
@@ -771,42 +953,82 @@ interface LevelEditor {
 
 ## 1.5. Phase 4: Polish and UI
 
-### 1.5.1. Task 4.1: Game State Management
+### 1.5.1. Task 4.1: Screen-Based Architecture
 
 **Priority**: High
 
 #### 1.5.1.1. Requirements
 
-- Implement game state machine
+- Implement screen-based architecture
+- Create base Screen class with common interface
+- Implement different screen types (Intro, Menu, Game, Pause, etc.)
 - Create screen transition system
 - Add pause/resume functionality
 - Implement game over conditions
 - Create state persistence
+- Separate ECS logic to GameScreen only
 
 #### 1.5.1.2. Technical Specifications
 
 ```typescript
-enum GameState {
-  INTRO = "intro",
-  TITLE = "title",
-  MENU = "menu",
-  PLAYING = "playing",
-  PAUSED = "paused",
-  GAME_OVER = "game_over",
-  VICTORY = "victory",
+// Base Screen interface
+interface Screen {
+  update(deltaTime: number): void;
+  render(canvas: Canvas): void;
+  onEnter(): void;
+  onExit(): void;
+  handleInput(inputManager: InputManager): void;
 }
 
-interface StateManager {
-  changeState(newState: GameState): void;
-  getCurrentState(): GameState;
+// Screen types
+enum ScreenType {
+  INTRO = 'intro',
+  MENU = 'menu',
+  GAME = 'game',
+  PAUSE = 'pause',
+  WIN = 'win',
+  LOSE = 'lose'
+}
+
+// Game as screen manager
+interface Game {
+  changeScreen(screenType: ScreenType): void;
+  getCurrentScreen(): Screen;
   update(deltaTime: number): void;
-  render(): void;
+  render(canvas: Canvas): void;
+}
+
+// Screen implementations
+interface IntroScreen extends Screen {
+  animateWindowsLogo(): void;
+  animateBoxesToCorners(): void;
+  generateLevelFromAnimation(): LevelData;
+}
+
+interface MenuScreen extends Screen {
+  handleMenuNavigation(): void;
+  renderMenuOptions(): void;
+}
+
+interface GameScreen extends Screen {
+  getWorld(): World;
+  getECS(): ECSManager;
+  handleGameplayInput(): void;
+}
+
+interface PauseScreen extends Screen {
+  renderPauseOverlay(): void;
+  handlePauseInput(): void;
 }
 ```
 
 #### 1.5.1.3. Acceptance Criteria
 
-- [ ] State transitions work smoothly
+- [ ] Screen-based architecture is implemented
+- [ ] Base Screen class provides common interface
+- [ ] Different screen types work correctly
+- [ ] Screen transitions work smoothly
+- [ ] ECS logic is isolated to GameScreen
 - [ ] Pause functionality works
 - [ ] Game over conditions trigger correctly
 - [ ] State persistence works
