@@ -6,6 +6,7 @@ import { GameScreen } from '../screens/GameScreen';
 import { InputManager } from './InputManager';
 import { RenderPipeline } from './RenderPipeline';
 import { AudioManager } from './AudioManager';
+import { PerformanceMonitor } from '../utils/PerformanceMonitor';
 
 export class Game {
     private canvas: Canvas;
@@ -13,6 +14,7 @@ export class Game {
     private inputManager: InputManager;
     private renderPipeline: RenderPipeline;
     private audioManager: AudioManager;
+    private performanceMonitor: PerformanceMonitor;
     private currentScreen: Screen | null = null;
     private screens: Map<ScreenType, Screen> = new Map();
     private isInitialized: boolean = false;
@@ -23,12 +25,17 @@ export class Game {
     private transitionToScreen: Screen | null = null;
     private pendingScreenType: ScreenType | null = null;
 
+    // Performance monitoring
+    private performanceLogInterval: number = 0;
+    private performanceLogTimer: number = 0;
+
     constructor(canvas: Canvas, gameLoop: GameLoop) {
         this.canvas = canvas;
         this.gameLoop = gameLoop;
         this.inputManager = new InputManager();
         this.renderPipeline = new RenderPipeline(canvas);
         this.audioManager = new AudioManager();
+        this.performanceMonitor = new PerformanceMonitor();
 
         // Override game loop methods
         this.gameLoop.update = this.update.bind(this);
@@ -184,6 +191,9 @@ export class Game {
     }
 
     private update(deltaTime: number): void {
+        // Start performance monitoring for this frame
+        this.performanceMonitor.startFrame();
+
         // Update input
         this.inputManager.update();
 
@@ -213,6 +223,16 @@ export class Game {
                 }
             }
         }
+
+        // Performance logging (reduce console spam - only log critical warnings)
+        this.performanceLogTimer += deltaTime;
+        if (this.performanceLogTimer >= 10000) { // Reduced to every 10 seconds
+            const warnings = this.performanceMonitor.checkPerformanceWarnings();
+            if (warnings.length > 0) {
+                console.warn('Performance warnings:', warnings);
+            }
+            this.performanceLogTimer = 0;
+        }
     }
 
     private render(): void {
@@ -224,6 +244,9 @@ export class Game {
             this.canvas.clear();
             this.canvas.drawText('No screen active', 400, 300, '24px Arial', '#ffffff');
         }
+
+        // End performance monitoring for this frame
+        this.performanceMonitor.endFrame();
     }
 
     getCurrentScreen(): Screen | null {
@@ -240,6 +263,10 @@ export class Game {
 
     getAudioManager(): AudioManager {
         return this.audioManager;
+    }
+
+    getPerformanceMonitor(): PerformanceMonitor {
+        return this.performanceMonitor;
     }
 
     private isTransitionCapable(screen: Screen): boolean {

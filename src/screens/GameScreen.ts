@@ -24,9 +24,11 @@ import { ShieldComponent } from '../ecs/components/ShieldComponent';
 import { SpreadShotComponent } from '../ecs/components/SpreadShotComponent';
 import { ParallaxBackground, ParallaxConfig } from '../background/ParallaxBackground';
 import { ParallaxRenderer } from '../background/ParallaxRenderer';
+import { ComponentCache } from '../utils/ComponentCache';
 
 export class GameScreen extends BaseScreen {
 	private world: World;
+	private game: Game;
 	private inputManager: InputManager;
 	private renderPipeline: RenderPipeline;
 	private audioManager: any;
@@ -40,6 +42,7 @@ export class GameScreen extends BaseScreen {
 
 	constructor(game: Game) {
 		super();
+		this.game = game;
 		this.world = new World(); // GameScreen owns its own World
 		this.world.initialize(); // Initialize the ECS world
 		this.inputManager = game.getInputManager();
@@ -53,12 +56,15 @@ export class GameScreen extends BaseScreen {
 
 	private setupSystems(game: Game): void {
 		// Set up resources first
-		this.world.setResource('renderQueue', new RenderQueue());
+		const renderQueue = new RenderQueue();
+		renderQueue.setPerformanceMonitor(game.getPerformanceMonitor());
+		this.world.setResource('renderQueue', renderQueue);
+		this.world.setResource('componentCache', new ComponentCache(this.world));
 
 		// Create and register systems
 		const movementSystem = new MovementSystem(this.world);
 		const inputSystem = new InputSystem(this.world, this.inputManager);
-		const collisionSystem = new CollisionSystem(this.world);
+		const collisionSystem = new CollisionSystem(this.world, this.game.getPerformanceMonitor());
 		const healthSystem = new HealthSystem(this.world);
 		const effectSystem = new EffectSystem(this.world);
 		const audioSystem = new AudioSystem(this.world, game.getAudioManager());
@@ -154,6 +160,12 @@ export class GameScreen extends BaseScreen {
 		// Update parallax background
 		this.parallaxBackground.update(deltaTime);
 
+		// Update component cache
+		const componentCache = this.world.getResource<ComponentCache>('componentCache');
+		if (componentCache) {
+			componentCache.update(deltaTime);
+		}
+
 		// Update ECS world systems (GameScreen owns the World)
 		this.world.updateSystems(deltaTime);
 
@@ -184,6 +196,9 @@ export class GameScreen extends BaseScreen {
 
 		// Render level progress
 		this.renderLevelProgress(canvas);
+
+		// Render performance info (top-right corner)
+		this.renderPerformanceInfo(canvas);
 	}
 
 	private renderLevelProgress(canvas: Canvas): void {
@@ -324,6 +339,56 @@ export class GameScreen extends BaseScreen {
 				canvas.drawRect(barX, barY, durationBarWidth, barHeight, powerUp.color);
 			});
 		}
+	}
+
+	private renderPerformanceInfo(canvas: Canvas): void {
+		const performanceMonitor = this.game.getPerformanceMonitor();
+		const metrics = performanceMonitor.getMetrics();
+		const status = performanceMonitor.getPerformanceStatus();
+
+		// Position at top-right corner
+		const x = canvas.getWidth() - 200;
+		let y = canvas.getHeight() - 120;
+
+		// Status indicator with color
+		let statusColor = '#00ff00'; // Green for excellent
+		if (status === 'good') statusColor = '#ffff00'; // Yellow for good
+		else if (status === 'warning') statusColor = '#ff8800'; // Orange for warning
+		else if (status === 'critical') statusColor = '#ff0000'; // Red for critical
+
+		canvas.drawText(`Performance: ${status.toUpperCase()}`, x, y, '12px Arial', statusColor);
+		y += 16;
+
+		// FPS (most important metric)
+		const fpsColor = metrics.fps >= 55 ? '#00ff00' : metrics.fps >= 30 ? '#ffff00' : '#ff0000';
+		canvas.drawText(`FPS: ${metrics.fps.toFixed(0)}`, x, y, '12px Arial', fpsColor);
+		y += 16;
+
+		// Entity count
+		canvas.drawText(`Entities: ${metrics.entityCount}`, x, y, '12px Arial', '#ffffff');
+		y += 16;
+
+		// Collision checks (performance indicator)
+		const collisionColor = metrics.collisionChecks < 100 ? '#00ff00' : metrics.collisionChecks < 500 ? '#ffff00' : '#ff0000';
+		canvas.drawText(`Collisions: ${metrics.collisionChecks}`, x, y, '12px Arial', collisionColor);
+		y += 16;
+
+		// Render calls (optimization indicator)
+		const renderColor = metrics.renderCalls < 20 ? '#00ff00' : metrics.renderCalls < 50 ? '#ffff00' : '#ff0000';
+		canvas.drawText(`Render Calls: ${metrics.renderCalls}`, x, y, '12px Arial', renderColor);
+		y += 16;
+
+		// Memory usage (if available)
+		if (metrics.memoryUsage > 0) {
+			const memoryColor = metrics.memoryUsage < 50 ? '#00ff00' : metrics.memoryUsage < 100 ? '#ffff00' : '#ff0000';
+			canvas.drawText(`Memory: ${metrics.memoryUsage.toFixed(1)}MB`, x, y, '12px Arial', memoryColor);
+			y += 16;
+		}
+
+		// Frame time variance (stability indicator)
+		const variance = performanceMonitor.getFrameTimeVariance();
+		const varianceColor = variance < 2 ? '#00ff00' : variance < 5 ? '#ffff00' : '#ff0000';
+		canvas.drawText(`Frame Stability: ${variance.toFixed(1)}ms`, x, y, '12px Arial', varianceColor);
 	}
 
 	renderWithTransition(canvas: Canvas): void {

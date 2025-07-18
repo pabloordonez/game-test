@@ -36,8 +36,8 @@ export class LevelManager {
 			console.log(`Loading level ${levelNumber} from file...`);
 
 			// Use dynamic import to load the level file
-			const levelModule = await import(`../../public/assets/levels/level${levelNumber}.txt?raw`);
-			const levelContent = levelModule.default;
+			const levelResponse = await fetch(`/assets/levels/level${levelNumber}.txt`);
+			const levelContent = await levelResponse.text();
 
 			console.log(`Level ${levelNumber} content loaded, length:`, levelContent.length);
 
