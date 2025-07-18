@@ -2,7 +2,9 @@ import { BaseScreen, ScreenType, TransitionType } from './Screen';
 import { Game } from '../core/Game';
 import { InputManager } from '../core/InputManager';
 import { Canvas } from '../core/Canvas';
+import { RenderPipeline } from '../core/RenderPipeline';
 import { World } from '../ecs/core/World';
+import { RenderQueue } from '../core/RenderQueue';
 import { MovementSystem } from '../ecs/systems/MovementSystem';
 import { InputSystem } from '../ecs/systems/InputSystem';
 import { CollisionSystem } from '../ecs/systems/CollisionSystem';
@@ -15,34 +17,41 @@ import { LevelManager } from '../levels/LevelManager';
 export class GameScreen extends BaseScreen {
     private world: World;
     private inputManager: InputManager;
+    private renderPipeline: RenderPipeline;
     private systems: any[] = [];
-    private renderingSystem: RenderingSystem | null = null;
     private levelManager: LevelManager;
     private state: "idle" | "transitioning" = 'idle';
 
     constructor(game: Game) {
         super();
-        this.world = game.getWorld();
+        this.world = new World(); // GameScreen owns its own World
+        this.world.initialize(); // Initialize the ECS world
         this.inputManager = game.getInputManager();
+        this.renderPipeline = game.getRenderPipeline();
         this.levelManager = new LevelManager(this.world);
         this.setupSystems();
         this.createGameWorld();
     }
 
     private setupSystems(): void {
+        // Set up resources first
+        this.world.setResource('renderQueue', new RenderQueue());
+
         // Create and register systems
         const movementSystem = new MovementSystem(this.world);
         const inputSystem = new InputSystem(this.world, this.inputManager);
         const collisionSystem = new CollisionSystem(this.world);
         const healthSystem = new HealthSystem(this.world);
         const effectSystem = new EffectSystem(this.world);
+        const renderingSystem = new RenderingSystem(this.world);
 
         this.systems = [
             inputSystem,        // Must run first to set input flags
             movementSystem,     // Then apply movement based on input
             collisionSystem,
             healthSystem,
-            effectSystem
+            effectSystem,
+            renderingSystem     // Process render data and queue commands
         ];
 
         // Register systems with the world
@@ -66,6 +75,9 @@ export class GameScreen extends BaseScreen {
     }
 
     update(deltaTime: number): void {
+        // Update ECS world systems (GameScreen owns the World)
+        this.world.updateSystems(deltaTime);
+
         // Update level manager
         this.levelManager.update(deltaTime);
 
@@ -81,20 +93,15 @@ export class GameScreen extends BaseScreen {
     }
 
     render(canvas: Canvas): void {
-        // Clear canvas
-        canvas.clear();
+        // Update the render pipeline with the current canvas
+        this.renderPipeline.updateCanvas(canvas);
 
-        // Create rendering system with the canvas if not already created
-        if (!this.renderingSystem) {
-            this.renderingSystem = new RenderingSystem(this.world, canvas);
-            this.world.registerSystem(this.renderingSystem);
-        } else {
-            // Update the canvas reference in case it changed
-            (this.renderingSystem as any).canvas = canvas;
+        // Get the render queue from resources
+        const renderQueue = this.world.getResource<RenderQueue>('renderQueue');
+        if (renderQueue) {
+            // Execute the render pipeline
+            this.renderPipeline.execute(renderQueue);
         }
-
-        // Use the world's render method which will call the rendering system
-        this.world.render(canvas);
 
         // Render level progress
         this.renderLevelProgress(canvas);

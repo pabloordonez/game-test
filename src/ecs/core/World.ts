@@ -7,7 +7,21 @@ export class World {
     private entities: Map<number, Entity> = new Map();
     private components: Map<string, Map<number, Component>> = new Map();
     private systems: SystemRegistration[] = [];
+    private resources: Map<string, any> = new Map();
     private nextEntityId: number = 1;
+
+    // Resource management methods
+    setResource<T>(name: string, resource: T): void {
+        this.resources.set(name, resource);
+    }
+
+    getResource<T>(name: string): T | undefined {
+        return this.resources.get(name) as T;
+    }
+
+    hasResource(name: string): boolean {
+        return this.resources.has(name);
+    }
 
     constructor() {
         // Initialize component storage

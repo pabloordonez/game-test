@@ -3,14 +3,14 @@ import { GameLoop } from './GameLoop';
 import { Screen, ScreenType, TransitionConfig, TransitionCapable, TransitionType } from '../screens/Screen';
 import { IntroScreen } from '../screens/IntroScreen';
 import { GameScreen } from '../screens/GameScreen';
-import { World } from '../ecs/core/World';
 import { InputManager } from './InputManager';
+import { RenderPipeline } from './RenderPipeline';
 
 export class Game {
     private canvas: Canvas;
     private gameLoop: GameLoop;
-    private world: World;
     private inputManager: InputManager;
+    private renderPipeline: RenderPipeline;
     private currentScreen: Screen | null = null;
     private screens: Map<ScreenType, Screen> = new Map();
     private isInitialized: boolean = false;
@@ -24,8 +24,8 @@ export class Game {
     constructor(canvas: Canvas, gameLoop: GameLoop) {
         this.canvas = canvas;
         this.gameLoop = gameLoop;
-        this.world = new World();
         this.inputManager = new InputManager();
+        this.renderPipeline = new RenderPipeline(canvas);
 
         // Override game loop methods
         this.gameLoop.update = this.update.bind(this);
@@ -50,7 +50,6 @@ export class Game {
         console.log('Initializing game...');
 
         // Initialize systems
-        this.world.initialize();
         this.inputManager.initialize();
 
         // Initialize screens
@@ -184,9 +183,6 @@ export class Game {
         // Update input
         this.inputManager.update();
 
-        // Update ECS world systems
-        this.world.updateSystems(deltaTime);
-
         // Update current screen
         if (this.currentScreen) {
             this.currentScreen.update(deltaTime);
@@ -230,12 +226,12 @@ export class Game {
         return this.currentScreen;
     }
 
-    getWorld(): World {
-        return this.world;
-    }
-
     getInputManager(): InputManager {
         return this.inputManager;
+    }
+
+    getRenderPipeline(): RenderPipeline {
+        return this.renderPipeline;
     }
 
     private isTransitionCapable(screen: Screen): boolean {

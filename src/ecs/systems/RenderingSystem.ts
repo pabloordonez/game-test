@@ -3,24 +3,25 @@ import { Entity } from '../core/Entity';
 import { World } from '../core/World';
 import { PositionComponent } from '../components/PositionComponent';
 import { RenderComponent } from '../components/RenderComponent';
-import { Canvas } from '../../core/Canvas';
+import { CollisionComponent } from '../components/CollisionComponent';
+import { RenderQueue, RenderCommand } from '../../core/RenderQueue';
 
 export class RenderingSystem implements System {
     private entities: Entity[] = [];
     private world: World;
-    private canvas: Canvas;
 
-    constructor(world: World, canvas: Canvas) {
+    constructor(world: World) {
         this.world = world;
-        this.canvas = canvas;
     }
 
     update(_deltaTime: number): void {
-        // Rendering system doesn't need update logic
-        // It only renders in the render method
-    }
+        // Get the render queue resource
+        const renderQueue = this.world.getResource<RenderQueue>('renderQueue');
+        if (!renderQueue) return;
 
-    render(): void {
+        // Clear previous frame's commands at start of update
+        renderQueue.clear();
+
         // Sort entities by render order (background first, UI last)
         const sortedEntities = [...this.entities].sort((a, b) => {
             const renderA = this.world.getComponent(a.id, 'RenderComponent') as RenderComponent;
@@ -35,101 +36,53 @@ export class RenderingSystem implements System {
             return orderA - orderB;
         });
 
+        // Process each entity and queue render commands
         for (const entity of sortedEntities) {
-            this.renderEntity(entity);
+            this.queueRenderCommand(entity, renderQueue);
         }
     }
 
-    private renderEntity(entity: Entity): void {
+    private queueRenderCommand(entity: Entity, renderQueue: RenderQueue): void {
         const position = this.world.getComponent(entity.id, 'PositionComponent') as PositionComponent;
         const render = this.world.getComponent(entity.id, 'RenderComponent') as RenderComponent;
 
         if (!position || !render || !render.visible) return;
 
-        // Save context state
-        this.canvas.save();
-
-        // Apply transformations
-        this.canvas.translate(position.x, position.y);
-        this.canvas.rotate(render.rotation);
-        this.canvas.scale(render.scaleX, render.scaleY);
-
-        // Set alpha
-        this.canvas.setGlobalAlpha(render.alpha);
-
-        // Render based on entity type
-        this.renderEntityByType(entity, position, render);
-
-        // Restore context state
-        this.canvas.restore();
-    }
-
-    private renderEntityByType(entity: Entity, position: PositionComponent, render: RenderComponent): void {
+        // Create render command based on entity type
         const tags = this.getEntityTags(entity);
-
-        if (tags.includes('ship')) {
-            this.renderShip(entity, position, render);
-        } else if (tags.includes('bullet')) {
-            this.renderBullet(entity, position, render);
-        } else if (tags.includes('block')) {
-            this.renderBlock(entity, position, render);
-        } else if (tags.includes('powerup')) {
-            this.renderPowerUp(entity, position, render);
-        } else {
-            // Default rendering
-            this.renderDefault(entity, position, render);
+        const command = this.createRenderCommand(entity, position, render, tags);
+        
+        if (command) {
+            renderQueue.addCommand(command);
         }
     }
 
-    private renderShip(_entity: Entity, _position: PositionComponent, render: RenderComponent): void {
-        // Render ship as a triangle pointing upward
-        const context = this.canvas.getContext();
-        context.beginPath();
-        context.moveTo(0, -render.height / 2);
-        context.lineTo(-render.width / 2, render.height / 2);
-        context.lineTo(render.width / 2, render.height / 2);
-        context.closePath();
-        context.fillStyle = render.color;
-        context.fill();
-    }
+    private createRenderCommand(entity: Entity, position: PositionComponent, render: RenderComponent, tags: string[]): RenderCommand | null {
+        const baseCommand = {
+            x: position.x,
+            y: position.y,
+            width: render.width,
+            height: render.height,
+            color: render.color,
+            alpha: render.alpha,
+            rotation: render.rotation,
+            scaleX: render.scaleX,
+            scaleY: render.scaleY,
+            entityId: entity.id,
+            tags: tags
+        };
 
-    private renderBullet(_entity: Entity, _position: PositionComponent, render: RenderComponent): void {
-        // Render bullet as a small circle
-        this.canvas.drawCircle(0, 0, render.width / 2, render.color);
-    }
-
-    private renderBlock(_entity: Entity, _position: PositionComponent, render: RenderComponent): void {
-        // Render block as a rectangle
-        this.canvas.drawRect(-render.width / 2, -render.height / 2, render.width, render.height, render.color);
-
-        // Add border
-        const context = this.canvas.getContext();
-        context.strokeStyle = '#000000';
-        context.lineWidth = 1;
-        context.strokeRect(-render.width / 2, -render.height / 2, render.width, render.height);
-    }
-
-    private renderPowerUp(_entity: Entity, _position: PositionComponent, render: RenderComponent): void {
-        // Render power-up as a diamond shape
-        const context = this.canvas.getContext();
-        context.beginPath();
-        context.moveTo(0, -render.height / 2);
-        context.lineTo(render.width / 2, 0);
-        context.lineTo(0, render.height / 2);
-        context.lineTo(-render.width / 2, 0);
-        context.closePath();
-        context.fillStyle = render.color;
-        context.fill();
-
-        // Add sparkle effect
-        context.strokeStyle = '#ffffff';
-        context.lineWidth = 2;
-        context.stroke();
-    }
-
-    private renderDefault(_entity: Entity, _position: PositionComponent, render: RenderComponent): void {
-        // Default rectangle rendering
-        this.canvas.drawRect(-render.width / 2, -render.height / 2, render.width, render.height, render.color);
+        if (tags.includes('ship')) {
+            return { ...baseCommand, type: 'triangle' as const };
+        } else if (tags.includes('bullet')) {
+            return { ...baseCommand, type: 'rect' as const };
+        } else if (tags.includes('block')) {
+            return { ...baseCommand, type: 'rect' as const };
+        } else if (tags.includes('powerup')) {
+            return { ...baseCommand, type: 'circle' as const, radius: Math.min(render.width, render.height) / 2 };
+        } else {
+            return { ...baseCommand, type: 'rect' as const };
+        }
     }
 
     private getRenderOrder(entity: Entity): number {
@@ -146,8 +99,8 @@ export class RenderingSystem implements System {
     }
 
     private getEntityTags(entity: Entity): string[] {
-        const collision = this.world.getComponent(entity.id, 'CollisionComponent');
-        return collision ? (collision as any).tags : [];
+        const collision = this.world.getComponent(entity.id, 'CollisionComponent') as CollisionComponent;
+        return collision ? collision.tags : [];
     }
 
     getEntities(): Entity[] {
