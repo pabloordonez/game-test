@@ -94,6 +94,18 @@ export class InputManager {
                this.getGamepadAxis('axis_0') > 0.5;
     }
 
+    isMoveUp(): boolean {
+        return this.isKeyPressed('ArrowUp') ||
+               this.isKeyPressed('KeyW') ||
+               this.getGamepadAxis('axis_1') < -0.5;
+    }
+
+    isMoveDown(): boolean {
+        return this.isKeyPressed('ArrowDown') ||
+               this.isKeyPressed('KeyS') ||
+               this.getGamepadAxis('axis_1') > 0.5;
+    }
+
     isFire(): boolean {
         return this.isKeyPressed('Space') ||
                this.isKeyPressed('KeyZ') ||

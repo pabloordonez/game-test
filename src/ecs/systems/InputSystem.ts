@@ -22,6 +22,15 @@ export class InputSystem implements System {
     update(deltaTime: number): void {
         this.currentTime += deltaTime;
 
+        // Reset input flags for all movement components first
+        for (const entity of this.entities) {
+            const movement = this.world.getComponent(entity.id, 'MovementComponent') as MovementComponent;
+            if (movement) {
+                movement.hasInputX = false;
+                movement.hasInputY = false;
+            }
+        }
+
         for (const entity of this.entities) {
             const position = this.world.getComponent(entity.id, 'PositionComponent') as PositionComponent;
             const movement = this.world.getComponent(entity.id, 'MovementComponent') as MovementComponent;
@@ -29,7 +38,7 @@ export class InputSystem implements System {
 
             if (!position || !movement) continue;
 
-            this.handleMovement(entity, position, movement);
+            this.handleMovement(entity, position, movement, deltaTime);
 
             if (weapon) {
                 this.handleWeapon(entity, position, weapon);
@@ -37,19 +46,34 @@ export class InputSystem implements System {
         }
     }
 
-    private handleMovement(entity: Entity, position: PositionComponent, movement: MovementComponent): void {
+    private handleMovement(entity: Entity, position: PositionComponent, movement: MovementComponent, deltaTime: number): void {
         let inputX = 0;
+        let inputY = 0;
 
-        // Handle horizontal movement only
+        // Handle horizontal movement
         if (this.inputManager.isMoveLeft()) {
             inputX = -1;
         } else if (this.inputManager.isMoveRight()) {
             inputX = 1;
         }
 
-        // Apply acceleration based on input (using proper time scaling)
+        // Handle vertical movement
+        if (this.inputManager.isMoveUp()) {
+            inputY = -1;
+        } else if (this.inputManager.isMoveDown()) {
+            inputY = 1;
+        }
+
+        // Track input state for inertia system
+        movement.hasInputX = inputX !== 0;
+        movement.hasInputY = inputY !== 0;
+
+        // Apply acceleration based on input (using proper deltaTime)
         if (inputX !== 0) {
-            position.velocityX += inputX * movement.acceleration * 0.016; // 0.016 is roughly 1/60 for 60 FPS
+            position.velocityX += inputX * movement.acceleration * deltaTime;
+        }
+        if (inputY !== 0) {
+            position.velocityY += inputY * movement.acceleration * deltaTime;
         }
 
         // Clamp velocity to max speed
@@ -141,8 +165,11 @@ export class InputSystem implements System {
             position.velocityX = 0;
         }
 
-        // Vertical boundaries (ship can't go below screen)
-        if (position.y + shipHeight / 2 > canvasHeight) {
+        // Vertical boundaries (ship can move within screen bounds)
+        if (position.y - shipHeight / 2 < 0) {
+            position.y = shipHeight / 2;
+            position.velocityY = 0;
+        } else if (position.y + shipHeight / 2 > canvasHeight) {
             position.y = canvasHeight - shipHeight / 2;
             position.velocityY = 0;
         }

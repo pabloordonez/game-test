@@ -38,8 +38,8 @@ export class GameScreen extends BaseScreen {
         const effectSystem = new EffectSystem(this.world);
 
         this.systems = [
-            movementSystem,
-            inputSystem,
+            inputSystem,        // Must run first to set input flags
+            movementSystem,     // Then apply movement based on input
             collisionSystem,
             healthSystem,
             effectSystem

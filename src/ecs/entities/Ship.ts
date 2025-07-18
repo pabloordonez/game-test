@@ -14,8 +14,9 @@ export class Ship {
         // Add position component
         world.addComponent(entity.id, new PositionComponent(entity.id, x, y));
 
-        // Add movement component
-        world.addComponent(entity.id, new MovementComponent(entity.id, 200, 800, 600, 400));
+        // Add movement component with faster, responsive values
+        // speed, acceleration, deceleration, maxSpeed
+        world.addComponent(entity.id, new MovementComponent(entity.id, 400, 500, 400, 350));
 
         // Add health component
         world.addComponent(entity.id, new HealthComponent(entity.id, 100));

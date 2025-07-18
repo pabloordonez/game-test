@@ -6,6 +6,8 @@ export class MovementComponent implements Component {
     public acceleration: number;
     public deceleration: number;
     public maxSpeed: number;
+    public hasInputX: boolean = false;
+    public hasInputY: boolean = false;
 
     constructor(entityId: number, speed: number = 200, acceleration: number = 800, deceleration: number = 600, maxSpeed: number = 400) {
         this.entityId = entityId;

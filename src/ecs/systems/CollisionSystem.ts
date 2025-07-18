@@ -7,13 +7,13 @@ import { HealthComponent } from '../components/HealthComponent';
 import { BlockComponent, BlockType } from '../components/BlockComponent';
 import { WeaponComponent } from '../components/WeaponComponent';
 import { PowerUpComponent, PowerUpType } from '../components/PowerUpComponent';
-import { RenderComponent } from '../components/RenderComponent';
 import { TimeComponent, TimeEffectType } from '../components/TimeComponent';
 import { BiggerGunsComponent } from '../components/BiggerGunsComponent';
 import { RapidFireComponent } from '../components/RapidFireComponent';
 import { ShieldComponent } from '../components/ShieldComponent';
 import { SpeedBoostComponent } from '../components/SpeedBoostComponent';
 import { SpreadShotComponent } from '../components/SpreadShotComponent';
+import { PowerUp } from '../entities/PowerUp';
 
 export class CollisionSystem implements System {
     private entities: Entity[] = [];
@@ -193,12 +193,19 @@ export class CollisionSystem implements System {
         }
     }
 
-    private handleShipBlockCollision(ship: Entity, _block: Entity): void {
+    private handleShipBlockCollision(ship: Entity, block: Entity): void {
         const shipHealth = this.world.getComponent(ship.id, 'HealthComponent') as HealthComponent;
+        const blockComponent = this.world.getComponent(block.id, 'BlockComponent') as BlockComponent;
 
         if (shipHealth) {
             // Ship takes damage from hitting block
             this.damageEntity(shipHealth, 10);
+        }
+
+        if (blockComponent) {
+            // Block is destroyed when ship hits it
+            // If the block would have dropped a powerup, it's lost (not spawned)
+            this.world.destroyEntity(block.id);
         }
     }
 
@@ -230,18 +237,8 @@ export class CollisionSystem implements System {
         const position = this.world.getComponent(block.id, 'PositionComponent') as PositionComponent;
         if (!position) return;
 
-        // Create power-up entity
-        const powerUpEntity = this.world.createEntity();
-
-        // Add components to power-up
-        this.world.addComponent(powerUpEntity.id, new PositionComponent(powerUpEntity.id, position.x, position.y));
-        this.world.addComponent(powerUpEntity.id, new CollisionComponent(powerUpEntity.id, 20, 20, true));
-        this.world.addComponent(powerUpEntity.id, new RenderComponent(powerUpEntity.id, 20, 20, '#00ff00'));
-
-        // Random power-up type
-        const powerUpTypes = Object.values(PowerUpType);
-        const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-        this.world.addComponent(powerUpEntity.id, new PowerUpComponent(powerUpEntity.id, randomType));
+        // Create power-up entity using the PowerUp class
+        PowerUp.createRandom(this.world, position.x, position.y);
     }
 
     private getEntityTags(entity: Entity): string[] {
