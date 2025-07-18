@@ -4,6 +4,7 @@ import { World } from '../core/World';
 import { PositionComponent } from '../components/PositionComponent';
 import { MovementComponent } from '../components/MovementComponent';
 import { CollisionComponent } from '../components/CollisionComponent';
+import { SpeedBoostComponent } from '../components/SpeedBoostComponent';
 
 export class MovementSystem implements System {
     private entities: Entity[] = [];
@@ -43,10 +44,17 @@ export class MovementSystem implements System {
                 }
             }
 
-            // Clamp velocity to max speed
+            // Apply speed boost effect if present
+            let effectiveMaxSpeed = movement.maxSpeed;
+            const speedBoost = this.world.getComponent(entity.id, 'SpeedBoostComponent') as SpeedBoostComponent;
+            if (speedBoost) {
+                effectiveMaxSpeed *= speedBoost.speedMultiplier;
+            }
+
+            // Clamp velocity to effective max speed
             const speed = Math.sqrt(position.velocityX * position.velocityX + position.velocityY * position.velocityY);
-            if (speed > movement.maxSpeed) {
-                const scale = movement.maxSpeed / speed;
+            if (speed > effectiveMaxSpeed) {
+                const scale = effectiveMaxSpeed / speed;
                 position.velocityX *= scale;
                 position.velocityY *= scale;
             }

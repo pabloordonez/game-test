@@ -198,8 +198,23 @@ export class CollisionSystem implements System {
         const blockComponent = this.world.getComponent(block.id, 'BlockComponent') as BlockComponent;
 
         if (shipHealth) {
-            // Ship takes damage from hitting block
-            this.damageEntity(shipHealth, 10);
+            // Check for shield protection
+            const shield = this.world.getComponent(ship.id, 'ShieldComponent') as ShieldComponent;
+            if (shield && shield.strength > 0) {
+                // Shield absorbs the damage
+                const damage = 10;
+                shield.strength = Math.max(0, shield.strength - damage);
+                
+                if (shield.strength <= 0) {
+                    // Shield is depleted, remove it
+                    this.world.removeComponent(ship.id, 'ShieldComponent');
+                    console.log('Shield depleted!');
+                }
+                console.log('Shield absorbed damage, remaining strength:', shield.strength);
+            } else {
+                // No shield or shield depleted, ship takes damage
+                this.damageEntity(shipHealth, 10);
+            }
         }
 
         if (blockComponent) {

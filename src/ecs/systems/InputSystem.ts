@@ -7,6 +7,9 @@ import { MovementComponent } from '../components/MovementComponent';
 import { WeaponComponent } from '../components/WeaponComponent';
 import { CollisionComponent } from '../components/CollisionComponent';
 import { RenderComponent } from '../components/RenderComponent';
+import { RapidFireComponent } from '../components/RapidFireComponent';
+import { BiggerGunsComponent } from '../components/BiggerGunsComponent';
+import { SpreadShotComponent } from '../components/SpreadShotComponent';
 
 export class InputSystem implements System {
     private entities: Entity[] = [];
@@ -93,15 +96,23 @@ export class InputSystem implements System {
 
     private handleWeapon(entity: Entity, position: PositionComponent, weapon: WeaponComponent): void {
         // Handle firing
-        if (this.inputManager.isFire() && this.canFire(weapon, this.currentTime)) {
+        if (this.inputManager.isFire() && this.canFire(entity, weapon, this.currentTime)) {
             this.fireBullet(entity, position, weapon);
             this.fireWeapon(weapon, this.currentTime);
         }
     }
 
-    private canFire(weapon: WeaponComponent, currentTime: number): boolean {
+    private canFire(entity: Entity, weapon: WeaponComponent, currentTime: number): boolean {
         const timeSinceLastFire = currentTime - weapon.lastFireTime;
-        const fireInterval = 1 / weapon.fireRate;
+        
+        // Apply rapid fire effect if present
+        let effectiveFireRate = weapon.fireRate;
+        const rapidFire = this.world.getComponent(entity.id, 'RapidFireComponent') as RapidFireComponent;
+        if (rapidFire) {
+            effectiveFireRate *= rapidFire.fireRateMultiplier;
+        }
+        
+        const fireInterval = 1 / effectiveFireRate;
         return timeSinceLastFire >= fireInterval;
     }
 
@@ -109,7 +120,31 @@ export class InputSystem implements System {
         weapon.lastFireTime = currentTime;
     }
 
-    private fireBullet(_entity: Entity, position: PositionComponent, weapon: WeaponComponent): void {
+    private fireBullet(entity: Entity, position: PositionComponent, weapon: WeaponComponent): void {
+        // Check for spread shot effect
+        const spreadShot = this.world.getComponent(entity.id, 'SpreadShotComponent') as SpreadShotComponent;
+        
+        if (spreadShot) {
+            // Fire multiple bullets in a spread pattern
+            this.fireSpreadBullets(entity, position, weapon, spreadShot);
+        } else {
+            // Fire single bullet
+            this.createBullet(entity, position, weapon, 0); // 0 angle for straight shot
+        }
+    }
+
+    private fireSpreadBullets(entity: Entity, position: PositionComponent, weapon: WeaponComponent, spreadShot: SpreadShotComponent): void {
+        const bulletCount = spreadShot.bulletCount;
+        const spreadAngle = spreadShot.spreadAngle;
+        
+        for (let i = 0; i < bulletCount; i++) {
+            // Calculate angle for each bullet
+            const angle = (i - (bulletCount - 1) / 2) * (spreadAngle / (bulletCount - 1));
+            this.createBullet(entity, position, weapon, angle);
+        }
+    }
+
+    private createBullet(entity: Entity, position: PositionComponent, weapon: WeaponComponent, angle: number): void {
         // Create bullet entity
         const bulletEntity = this.world.createEntity();
 
@@ -130,10 +165,13 @@ export class InputSystem implements System {
         );
         this.world.addComponent(bulletEntity.id, bulletMovement);
 
-        // Set bullet velocity (moving upward)
+        // Set bullet velocity with angle consideration
         const bulletPosition = this.world.getComponent(bulletEntity.id, 'PositionComponent') as PositionComponent;
         if (bulletPosition) {
-            bulletPosition.velocityY = -weapon.bulletSpeed;
+            // Convert angle to radians and apply
+            const angleRad = (angle * Math.PI) / 180;
+            bulletPosition.velocityX = Math.sin(angleRad) * weapon.bulletSpeed;
+            bulletPosition.velocityY = -Math.cos(angleRad) * weapon.bulletSpeed;
         }
 
         // Add collision component
@@ -144,10 +182,17 @@ export class InputSystem implements System {
         // Add render component
         this.world.addComponent(bulletEntity.id, new RenderComponent(bulletEntity.id, 4, 8, '#ffff00'));
 
-        // Add weapon component for damage
-        this.world.addComponent(bulletEntity.id, new WeaponComponent(bulletEntity.id, 0, weapon.bulletType, weapon.damage));
+        // Calculate effective damage (apply BiggerGuns effect)
+        let effectiveDamage = weapon.damage;
+        const biggerGuns = this.world.getComponent(entity.id, 'BiggerGunsComponent') as BiggerGunsComponent;
+        if (biggerGuns) {
+            effectiveDamage += biggerGuns.bonusDamage;
+        }
 
-        console.log('Bullet created with velocity:', bulletPosition?.velocityY, 'maxSpeed:', bulletMovement.maxSpeed);
+        // Add weapon component for damage
+        this.world.addComponent(bulletEntity.id, new WeaponComponent(bulletEntity.id, 0, weapon.bulletType, effectiveDamage));
+
+        console.log('Bullet created with velocity:', bulletPosition?.velocityX, bulletPosition?.velocityY, 'damage:', effectiveDamage);
     }
 
     private applyScreenBoundaries(position: PositionComponent): void {

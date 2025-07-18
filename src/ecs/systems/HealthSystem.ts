@@ -2,13 +2,19 @@ import { System } from '../core/System';
 import { Entity } from '../core/Entity';
 import { World } from '../core/World';
 import { HealthComponent } from '../components/HealthComponent';
+import { CollisionComponent } from '../components/CollisionComponent';
 
 export class HealthSystem implements System {
     private entities: Entity[] = [];
     private world: World;
+    private onPlayerDeath?: () => void;
 
     constructor(world: World) {
         this.world = world;
+    }
+
+    setPlayerDeathCallback(callback: () => void): void {
+        this.onPlayerDeath = callback;
     }
 
     update(deltaTime: number): void {
@@ -16,8 +22,27 @@ export class HealthSystem implements System {
             const health = this.world.getComponent(entity.id, 'HealthComponent') as HealthComponent;
             if (health) {
                 this.updateInvulnerability(health, deltaTime);
+                
+                // Check for death
+                if (health.currentHealth <= 0) {
+                    this.handleEntityDeath(entity);
+                }
             }
         }
+    }
+
+    private handleEntityDeath(entity: Entity): void {
+        // Check if this is the player ship
+        const collisionComponent = this.world.getComponent(entity.id, 'CollisionComponent') as CollisionComponent;
+        if (collisionComponent && collisionComponent.tags.includes('ship')) {
+            // Player died
+            console.log('Player died!');
+            if (this.onPlayerDeath) {
+                this.onPlayerDeath();
+            }
+        }
+        
+        // Don't destroy the entity immediately - let the callback handle respawn/restart
     }
 
     private updateInvulnerability(health: HealthComponent, deltaTime: number): void {
