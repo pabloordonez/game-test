@@ -5,12 +5,14 @@ import { IntroScreen } from '../screens/IntroScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { InputManager } from './InputManager';
 import { RenderPipeline } from './RenderPipeline';
+import { AudioManager } from './AudioManager';
 
 export class Game {
     private canvas: Canvas;
     private gameLoop: GameLoop;
     private inputManager: InputManager;
     private renderPipeline: RenderPipeline;
+    private audioManager: AudioManager;
     private currentScreen: Screen | null = null;
     private screens: Map<ScreenType, Screen> = new Map();
     private isInitialized: boolean = false;
@@ -26,6 +28,7 @@ export class Game {
         this.gameLoop = gameLoop;
         this.inputManager = new InputManager();
         this.renderPipeline = new RenderPipeline(canvas);
+        this.audioManager = new AudioManager();
 
         // Override game loop methods
         this.gameLoop.update = this.update.bind(this);
@@ -51,6 +54,7 @@ export class Game {
 
         // Initialize systems
         this.inputManager.initialize();
+        this.audioManager.initialize();
 
         // Initialize screens
         this.initializeScreens();
@@ -232,6 +236,10 @@ export class Game {
 
     getRenderPipeline(): RenderPipeline {
         return this.renderPipeline;
+    }
+
+    getAudioManager(): AudioManager {
+        return this.audioManager;
     }
 
     private isTransitionCapable(screen: Screen): boolean {

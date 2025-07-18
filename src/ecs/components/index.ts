@@ -1,3 +1,4 @@
+export { AudioComponent, AudioEventType } from './AudioComponent';
 export { PositionComponent } from './PositionComponent';
 export { MovementComponent } from './MovementComponent';
 export { HealthComponent } from './HealthComponent';

@@ -13,6 +13,7 @@ import { RapidFireComponent } from '../components/RapidFireComponent';
 import { ShieldComponent } from '../components/ShieldComponent';
 import { SpeedBoostComponent } from '../components/SpeedBoostComponent';
 import { SpreadShotComponent } from '../components/SpreadShotComponent';
+import { AudioComponent, AudioEventType } from '../components/AudioComponent';
 import { PowerUp } from '../entities/PowerUp';
 
 export class CollisionSystem implements System {
@@ -132,10 +133,16 @@ export class CollisionSystem implements System {
             // Damage the block
             const destroyed = this.damageBlock(blockComponent, bulletComponent.damage);
 
+            // Trigger bullet hit sound
+            this.triggerAudioEvent(bullet, 'bullet_hit', 0.6);
+
             // Destroy the bullet
             this.world.destroyEntity(bullet.id);
 
             if (destroyed) {
+                // Trigger block destruction sound
+                this.triggerAudioEvent(block, 'block_destroy', 0.8);
+                
                 // Handle block destruction
                 this.handleBlockDestruction(block, blockComponent);
             }
@@ -151,12 +158,15 @@ export class CollisionSystem implements System {
         return blockComponent.health <= 0;
     }
 
-    private handleShipPowerUpCollision(_ship: Entity, powerUp: Entity): void {
+    private handleShipPowerUpCollision(ship: Entity, powerUp: Entity): void {
         const powerUpComponent = this.world.getComponent(powerUp.id, 'PowerUpComponent') as PowerUpComponent;
 
         if (powerUpComponent) {
+            // Trigger power-up collection sound
+            this.triggerAudioEvent(ship, 'powerup_collect', 0.7);
+
             // Apply power-up effect by adding the appropriate effect component to the ship
-            this.applyPowerUpToShip(_ship, powerUpComponent);
+            this.applyPowerUpToShip(ship, powerUpComponent);
 
             // Destroy the power-up
             this.world.destroyEntity(powerUp.id);
@@ -205,14 +215,19 @@ export class CollisionSystem implements System {
                 const damage = 10;
                 shield.strength = Math.max(0, shield.strength - damage);
                 
+                // Trigger shield hit sound
+                this.triggerAudioEvent(ship, 'shield_hit', 0.5);
+                
                 if (shield.strength <= 0) {
                     // Shield is depleted, remove it
                     this.world.removeComponent(ship.id, 'ShieldComponent');
+                    this.triggerAudioEvent(ship, 'shield_break', 0.8);
                     console.log('Shield depleted!');
                 }
                 console.log('Shield absorbed damage, remaining strength:', shield.strength);
             } else {
                 // No shield or shield depleted, ship takes damage
+                this.triggerAudioEvent(ship, 'ship_damage', 0.7);
                 this.damageEntity(shipHealth, 10);
             }
         }
@@ -259,6 +274,21 @@ export class CollisionSystem implements System {
     private getEntityTags(entity: Entity): string[] {
         const collision = this.world.getComponent(entity.id, 'CollisionComponent') as CollisionComponent;
         return collision ? collision.tags : [];
+    }
+
+    private triggerAudioEvent(entity: Entity, soundId: string, volume: number = 1.0): void {
+        let audioComponent = this.world.getComponent(entity.id, 'AudioComponent') as AudioComponent;
+        
+        if (!audioComponent) {
+            audioComponent = new AudioComponent(entity.id);
+            this.world.addComponent(entity.id, audioComponent);
+        }
+
+        audioComponent.addEvent({
+            type: AudioEventType.PLAY_SOUND,
+            soundId: soundId,
+            volume: volume
+        });
     }
 
     getEntities(): Entity[] {

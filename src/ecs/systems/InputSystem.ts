@@ -10,6 +10,7 @@ import { RenderComponent } from '../components/RenderComponent';
 import { RapidFireComponent } from '../components/RapidFireComponent';
 import { BiggerGunsComponent } from '../components/BiggerGunsComponent';
 import { SpreadShotComponent } from '../components/SpreadShotComponent';
+import { AudioComponent, AudioEventType } from '../components/AudioComponent';
 
 export class InputSystem implements System {
     private entities: Entity[] = [];
@@ -127,9 +128,11 @@ export class InputSystem implements System {
         if (spreadShot) {
             // Fire multiple bullets in a spread pattern
             this.fireSpreadBullets(entity, position, weapon, spreadShot);
+            this.triggerAudioEvent(entity, 'weapon_spread', 0.6);
         } else {
             // Fire single bullet
             this.createBullet(entity, position, weapon, 0); // 0 angle for straight shot
+            this.triggerAudioEvent(entity, 'weapon_fire', 0.5);
         }
     }
 
@@ -223,6 +226,21 @@ export class InputSystem implements System {
     private getEntityTags(entity: Entity): string[] {
         const collision = this.world.getComponent(entity.id, 'CollisionComponent');
         return collision ? (collision as any).tags : [];
+    }
+
+    private triggerAudioEvent(entity: Entity, soundId: string, volume: number = 1.0): void {
+        let audioComponent = this.world.getComponent(entity.id, 'AudioComponent') as AudioComponent;
+        
+        if (!audioComponent) {
+            audioComponent = new AudioComponent(entity.id);
+            this.world.addComponent(entity.id, audioComponent);
+        }
+
+        audioComponent.addEvent({
+            type: AudioEventType.PLAY_SOUND,
+            soundId: soundId,
+            volume: volume
+        });
     }
 
     getEntities(): Entity[] {

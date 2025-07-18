@@ -63,7 +63,7 @@ export class IntroScreen extends BaseScreen {
 				this.changeState('complete');
 				this.requestScreenChange(ScreenType.GAME, {
 					type: TransitionType.FADE,
-					duration: 1.5
+		 			duration: 1.5
 				});
 			});
 
