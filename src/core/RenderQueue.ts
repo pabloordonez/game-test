@@ -176,7 +176,12 @@ export class RenderQueue {
     private renderRectBatch(ctx: CanvasRenderingContext2D, batch: RenderBatch): void {
         ctx.beginPath();
         for (const command of batch.commands) {
-            ctx.rect(command.x, command.y, command.width || 0, command.height || 0);
+            const width = command.width || 0;
+            const height = command.height || 0;
+            // Convert from center-based coordinates to top-left for Canvas API
+            const x = command.x - width / 2;
+            const y = command.y - height / 2;
+            ctx.rect(x, y, width, height);
         }
         ctx.fill();
     }
@@ -219,7 +224,12 @@ export class RenderQueue {
 
         switch (command.type) {
             case 'rect':
-                ctx.fillRect(command.x, command.y, command.width || 0, command.height || 0);
+                const rectWidth = command.width || 0;
+                const rectHeight = command.height || 0;
+                // Convert from center-based coordinates to top-left for Canvas API
+                const rectX = command.x - rectWidth / 2;
+                const rectY = command.y - rectHeight / 2;
+                ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
                 break;
             case 'circle':
                 ctx.beginPath();
@@ -227,12 +237,12 @@ export class RenderQueue {
                 ctx.fill();
                 break;
             case 'triangle':
-                const width = command.width || 0;
-                const height = command.height || 0;
+                const triWidth = command.width || 0;
+                const triHeight = command.height || 0;
                 ctx.beginPath();
-                ctx.moveTo(command.x, command.y - height / 2);
-                ctx.lineTo(command.x - width / 2, command.y + height / 2);
-                ctx.lineTo(command.x + width / 2, command.y + height / 2);
+                ctx.moveTo(command.x, command.y - triHeight / 2);
+                ctx.lineTo(command.x - triWidth / 2, command.y + triHeight / 2);
+                ctx.lineTo(command.x + triWidth / 2, command.y + triHeight / 2);
                 ctx.closePath();
                 ctx.fill();
                 break;

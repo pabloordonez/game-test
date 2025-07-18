@@ -40,11 +40,20 @@ export class SpatialGrid {
         // Remove entity from previous cells if it exists
         this.remove(entity);
 
+        // For small entities (like bullets), expand their cell coverage to ensure they
+        // can collide with larger entities that might span multiple cells
+        const entityWidth = bounds.right - bounds.left;
+        const entityHeight = bounds.bottom - bounds.top;
+        const isSmallEntity = entityWidth <= 8 || entityHeight <= 8; // bullets are 4x8
+        
+        // Add buffer for small entities to ensure collision detection works properly
+        const buffer = isSmallEntity ? this.cellSize * 0.1 : 0.001; // 10% of cell size for small entities
+
         // Find all cells this entity overlaps
-        const startCol = Math.max(0, Math.floor(bounds.left / this.cellSize));
-        const endCol = Math.min(this.cols - 1, Math.floor(bounds.right / this.cellSize));
-        const startRow = Math.max(0, Math.floor(bounds.top / this.cellSize));
-        const endRow = Math.min(this.rows - 1, Math.floor(bounds.bottom / this.cellSize));
+        const startCol = Math.max(0, Math.floor((bounds.left - buffer) / this.cellSize));
+        const endCol = Math.min(this.cols - 1, Math.floor((bounds.right + buffer) / this.cellSize));
+        const startRow = Math.max(0, Math.floor((bounds.top - buffer) / this.cellSize));
+        const endRow = Math.min(this.rows - 1, Math.floor((bounds.bottom + buffer) / this.cellSize));
 
         const spatialEntity: SpatialEntity = { entity, bounds };
         const entityCells: string[] = [];
@@ -152,7 +161,7 @@ export class SpatialGrid {
         const pairs: Array<[SpatialEntity, SpatialEntity]> = [];
         const processed = new Set<string>();
 
-        for (const [cellKey, cellEntities] of this.grid.entries()) {
+        for (const [_, cellEntities] of this.grid.entries()) {
             // Check collisions within this cell
             for (let i = 0; i < cellEntities.length; i++) {
                 for (let j = i + 1; j < cellEntities.length; j++) {
@@ -189,4 +198,4 @@ export class SpatialGrid {
             totalEntities: totalEntities
         };
     }
-} 
+}
