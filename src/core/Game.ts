@@ -67,7 +67,7 @@ export class Game {
 
         // Set up screen change callbacks with transition support
         introScreen.setScreenChangeCallback(this.handleScreenChangeWithTransition.bind(this));
-        // Note: GameScreen doesn't have setScreenChangeCallback method, so we'll handle it differently
+        gameScreen.setScreenChangeCallback(this.handleScreenChangeWithTransition.bind(this));
 
         // Store screens
         this.screens.set(ScreenType.INTRO, introScreen);

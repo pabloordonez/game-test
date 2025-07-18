@@ -1,4 +1,4 @@
-import { Screen } from './Screen';
+import { BaseScreen, ScreenType, TransitionType } from './Screen';
 import { Game } from '../core/Game';
 import { InputManager } from '../core/InputManager';
 import { Canvas } from '../core/Canvas';
@@ -12,14 +12,16 @@ import { EffectSystem } from '../ecs/systems/EffectSystem';
 import { Ship } from '../ecs/entities/Ship';
 import { LevelManager } from '../levels/LevelManager';
 
-export class GameScreen implements Screen {
+export class GameScreen extends BaseScreen {
     private world: World;
     private inputManager: InputManager;
     private systems: any[] = [];
     private renderingSystem: RenderingSystem | null = null;
     private levelManager: LevelManager;
+    private state: "idle" | "transitioning" = 'idle';
 
     constructor(game: Game) {
+        super();
         this.world = game.getWorld();
         this.inputManager = game.getInputManager();
         this.levelManager = new LevelManager(this.world);
@@ -50,18 +52,15 @@ export class GameScreen implements Screen {
     }
 
         private createGameWorld(): void {
-        // Create ship
         const ship = Ship.create(this.world, 400, 550);
         console.log('Ship created with ID:', ship.id);
 
-        // Load level 1 from file
         this.levelManager.loadLevelFromFile(1).then(() => {
             console.log('Level 1 loaded from file successfully');
         }).catch((error) => {
             console.error('Failed to load level 1:', error);
         });
 
-        // Debug: Check how many entities we have
         console.log('Total entities in world:', this.world.getEntityCount());
         console.log('Total systems registered:', this.world.getSystemCount());
     }
@@ -71,8 +70,12 @@ export class GameScreen implements Screen {
         this.levelManager.update(deltaTime);
 
         // Check for level completion
-        if (this.levelManager.isLevelComplete()) {
-            console.log('Level completed!');
+        if (this.levelManager.isLevelComplete() && this.state === 'idle') {
+            this.state = 'transitioning';
+            this.requestScreenChange(ScreenType.INTRO, {
+                type: TransitionType.FADE,
+                duration: 1.5
+            });
             // TODO: Handle level completion (advance to next level or show win screen)
         }
     }

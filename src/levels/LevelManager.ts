@@ -31,27 +31,27 @@ export class LevelManager {
 		this.createLevelBlocks();
 	}
 
-	    async loadLevelFromFile(levelNumber: number): Promise<void> {
-        try {
-            console.log(`Loading level ${levelNumber} from file...`);
+	async loadLevelFromFile(levelNumber: number): Promise<void> {
+		try {
+			console.log(`Loading level ${levelNumber} from file...`);
 
-            // Use dynamic import to load the level file
-            const levelModule = await import(`./levels/level${levelNumber}.txt?raw`);
-            const levelContent = levelModule.default;
+			// Use dynamic import to load the level file
+			const levelModule = await import(`./levels/level${levelNumber}.txt?raw`);
+			const levelContent = levelModule.default;
 
-            console.log(`Level ${levelNumber} content loaded, length:`, levelContent.length);
+			console.log(`Level ${levelNumber} content loaded, length:`, levelContent.length);
 
-            const levelData = LevelParser.parseLevelFile(levelContent);
-            console.log(`Parsed level ${levelNumber}:`, levelData.name);
+			const levelData = LevelParser.parseLevelFile(levelContent);
+			console.log(`Parsed level ${levelNumber}:`, levelData.name);
 
-            this.loadLevel(levelData);
-        } catch (error) {
-            console.error(`Error loading level ${levelNumber}:`, error);
-            // Fallback to default level
-            const defaultLevel = LevelParser.createDefaultLevel();
-            this.loadLevel(defaultLevel);
-        }
-    }
+			this.loadLevel(levelData);
+		} catch (error) {
+			console.error(`Error loading level ${levelNumber}:`, error);
+			// Fallback to default level
+			const defaultLevel = LevelParser.createDefaultLevel();
+			this.loadLevel(defaultLevel);
+		}
+	}
 
 	private clearLevelBlocks(): void {
 		// Get all entities with BlockComponent and destroy them
@@ -88,8 +88,7 @@ export class LevelManager {
 
 	private createBlock(x: number, y: number, blockType: string): void {
 		const screenX = x * this.blockSize + this.blockSize / 2;
-		// Start blocks from the top of the screen (y = 0) and position them based on their level position
-		const screenY = y * this.blockSize + this.blockSize / 2;
+		const screenY = -y * this.blockSize + this.blockSize / 2;
 
 		let blockTypeEnum: BlockType;
 		let color: string;
