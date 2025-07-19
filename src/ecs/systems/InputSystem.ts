@@ -105,14 +105,14 @@ export class InputSystem implements System {
 
     private canFire(entity: Entity, weapon: WeaponComponent, currentTime: number): boolean {
         const timeSinceLastFire = currentTime - weapon.lastFireTime;
-        
+
         // Apply rapid fire effect if present
         let effectiveFireRate = weapon.fireRate;
         const rapidFire = this.world.getComponent(entity.id, 'RapidFireComponent') as RapidFireComponent;
         if (rapidFire) {
             effectiveFireRate *= rapidFire.fireRateMultiplier;
         }
-        
+
         const fireInterval = 1 / effectiveFireRate;
         return timeSinceLastFire >= fireInterval;
     }
@@ -124,7 +124,7 @@ export class InputSystem implements System {
     private fireBullet(entity: Entity, position: PositionComponent, weapon: WeaponComponent): void {
         // Check for spread shot effect
         const spreadShot = this.world.getComponent(entity.id, 'SpreadShotComponent') as SpreadShotComponent;
-        
+
         if (spreadShot) {
             // Fire multiple bullets in a spread pattern
             this.fireSpreadBullets(entity, position, weapon, spreadShot);
@@ -139,7 +139,7 @@ export class InputSystem implements System {
     private fireSpreadBullets(entity: Entity, position: PositionComponent, weapon: WeaponComponent, spreadShot: SpreadShotComponent): void {
         const bulletCount = spreadShot.bulletCount;
         const spreadAngle = spreadShot.spreadAngle;
-        
+
         for (let i = 0; i < bulletCount; i++) {
             // Calculate angle for each bullet
             const angle = (i - (bulletCount - 1) / 2) * (spreadAngle / (bulletCount - 1));
@@ -194,8 +194,6 @@ export class InputSystem implements System {
 
         // Add weapon component for damage
         this.world.addComponent(bulletEntity.id, new WeaponComponent(bulletEntity.id, 0, weapon.bulletType, effectiveDamage));
-
-        console.log('Bullet created with velocity:', bulletPosition?.velocityX, bulletPosition?.velocityY, 'damage:', effectiveDamage);
     }
 
     private applyScreenBoundaries(position: PositionComponent): void {
@@ -230,7 +228,7 @@ export class InputSystem implements System {
 
     private triggerAudioEvent(entity: Entity, soundId: string, volume: number = 1.0): void {
         let audioComponent = this.world.getComponent(entity.id, 'AudioComponent') as AudioComponent;
-        
+
         if (!audioComponent) {
             audioComponent = new AudioComponent(entity.id);
             this.world.addComponent(entity.id, audioComponent);

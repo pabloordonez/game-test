@@ -31,6 +31,17 @@ export class SpatialGrid {
         this.entityCells = new Map();
     }
 
+    getWidth(): number {
+        return this.width;
+    }
+    getHeight(): number {
+        return this.height;
+    }
+
+    getCellSize(): number {
+        return this.cellSize;
+    }
+
     clear(): void {
         this.grid.clear();
         this.entityCells.clear();
@@ -45,7 +56,7 @@ export class SpatialGrid {
         const entityWidth = bounds.right - bounds.left;
         const entityHeight = bounds.bottom - bounds.top;
         const isSmallEntity = entityWidth <= 8 || entityHeight <= 8; // bullets are 4x8
-        
+
         // Add buffer for small entities to ensure collision detection works properly
         const buffer = isSmallEntity ? this.cellSize * 0.1 : 0.001; // 10% of cell size for small entities
 
@@ -62,11 +73,11 @@ export class SpatialGrid {
         for (let col = startCol; col <= endCol; col++) {
             for (let row = startRow; row <= endRow; row++) {
                 const cellKey = `${col},${row}`;
-                
+
                 if (!this.grid.has(cellKey)) {
                     this.grid.set(cellKey, []);
                 }
-                
+
                 this.grid.get(cellKey)!.push(spatialEntity);
                 entityCells.push(cellKey);
             }
@@ -88,7 +99,7 @@ export class SpatialGrid {
                 if (index !== -1) {
                     cellEntities.splice(index, 1);
                 }
-                
+
                 // Remove empty cells to save memory
                 if (cellEntities.length === 0) {
                     this.grid.delete(cellKey);
@@ -113,7 +124,7 @@ export class SpatialGrid {
             for (let row = startRow; row <= endRow; row++) {
                 const cellKey = `${col},${row}`;
                 const cellEntities = this.grid.get(cellKey);
-                
+
                 if (cellEntities) {
                     for (const spatialEntity of cellEntities) {
                         // Avoid duplicates (entities can be in multiple cells)
@@ -132,7 +143,7 @@ export class SpatialGrid {
     queryPoint(x: number, y: number): SpatialEntity[] {
         const col = Math.floor(x / this.cellSize);
         const row = Math.floor(y / this.cellSize);
-        
+
         if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) {
             return [];
         }
@@ -148,7 +159,7 @@ export class SpatialGrid {
             top: centerY - radius,
             bottom: centerY + radius
         };
-        
+
         return this.queryArea(bounds).filter(spatialEntity => {
             const dx = spatialEntity.bounds.left + (spatialEntity.bounds.right - spatialEntity.bounds.left) / 2 - centerX;
             const dy = spatialEntity.bounds.top + (spatialEntity.bounds.bottom - spatialEntity.bounds.top) / 2 - centerY;
@@ -167,12 +178,12 @@ export class SpatialGrid {
                 for (let j = i + 1; j < cellEntities.length; j++) {
                     const entityA = cellEntities[i];
                     const entityB = cellEntities[j];
-                    
+
                     // Create unique pair key (smaller ID first)
-                    const pairKey = entityA.entity.id < entityB.entity.id 
+                    const pairKey = entityA.entity.id < entityB.entity.id
                         ? `${entityA.entity.id}-${entityB.entity.id}`
                         : `${entityB.entity.id}-${entityA.entity.id}`;
-                    
+
                     if (!processed.has(pairKey)) {
                         processed.add(pairKey);
                         pairs.push([entityA, entityB]);
@@ -187,7 +198,7 @@ export class SpatialGrid {
     getStats(): { totalCells: number, activeCells: number, totalEntities: number } {
         const totalEntities = this.entityCells.size;
         let entitiesInCells = 0;
-        
+
         for (const entities of this.grid.values()) {
             entitiesInCells += entities.length;
         }

@@ -26,7 +26,6 @@ export class Game {
     private pendingScreenType: ScreenType | null = null;
 
     // Performance monitoring
-    private performanceLogInterval: number = 0;
     private performanceLogTimer: number = 0;
 
     constructor(canvas: Canvas, gameLoop: GameLoop) {
@@ -267,6 +266,10 @@ export class Game {
 
     getPerformanceMonitor(): PerformanceMonitor {
         return this.performanceMonitor;
+    }
+
+    getCanvas(): Canvas {
+        return this.canvas;
     }
 
     private isTransitionCapable(screen: Screen): boolean {

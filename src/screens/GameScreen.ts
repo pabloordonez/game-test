@@ -54,6 +54,55 @@ export class GameScreen extends BaseScreen {
 		this.createGameWorld();
 	}
 
+	update(deltaTime: number): void {
+		// Update component cache
+		const componentCache = this.world.getResource<ComponentCache>('componentCache');
+		if (componentCache) {
+			componentCache.update(deltaTime);
+		}
+
+		this.updateParallaxSpeed();
+		this.parallaxBackground.update(deltaTime);
+		this.world.updateSystems(deltaTime);
+		this.levelManager.update(deltaTime);
+
+		// Check for level completion
+		if (this.levelManager.isLevelComplete() && this.state === 'idle') {
+			this.state = 'transitioning';
+			this.handleLevelCompletion();
+		}
+	}
+
+	render(canvas: Canvas): void {
+		// Update parallax background dimensions if needed
+		const currentWidth = canvas.getWidth();
+		const currentHeight = canvas.getHeight();
+		this.parallaxBackground.resize(currentWidth, currentHeight);
+
+		const renderQueue = this.world.getResource<RenderQueue>('renderQueue');
+		if (renderQueue) this.renderPipeline.execute(renderQueue);
+
+		this.parallaxRenderer.renderLayers(this.parallaxBackground.getLayers());
+		this.renderLevelProgress(canvas);
+		this.renderPerformanceInfo(canvas);
+	}
+
+	renderWithTransition(canvas: Canvas): void {
+		this.render(canvas);
+	}
+
+	handleInput(_inputManager: InputManager): void {
+		// Input is handled by InputSystem
+	}
+
+	onEnter(): void {
+		console.log('Entering GameScreen');
+	}
+
+	onExit(): void {
+		console.log('Exiting GameScreen');
+	}
+
 	private setupSystems(game: Game): void {
 		// Set up resources first
 		const renderQueue = new RenderQueue();
@@ -112,22 +161,19 @@ export class GameScreen extends BaseScreen {
 	}
 
 	private initializeParallaxBackground(): void {
+		// Get canvas dimensions from the game's canvas
+		// We'll initialize with default dimensions and update in render
 		const config: ParallaxConfig = {
 			layerCount: 6,
 			baseSpeed: 20,
 			speedMultiplier: 1.5,
-			screenWidth: 800,
-			screenHeight: 600
+			screenWidth: 800, // Default, will be updated
+			screenHeight: 600, // Default, will be updated
+			theme: 'space'
 		};
 
 		this.parallaxBackground = new ParallaxBackground(config);
-		// ParallaxRenderer will be initialized with actual canvas in render method
-		// For now, create with a temporary canvas (will be updated in render)
-		const tempCanvas = document.createElement('canvas');
-		const tempCanvasWrapper = {
-			getContext: () => tempCanvas.getContext('2d')!
-		} as Canvas;
-		this.parallaxRenderer = new ParallaxRenderer(tempCanvasWrapper);
+		this.parallaxRenderer = new ParallaxRenderer(this.game.getCanvas());
 	}
 
 	private async initializeAudio(): Promise<void> {
@@ -156,49 +202,33 @@ export class GameScreen extends BaseScreen {
 		}
 	}
 
-	update(deltaTime: number): void {
-		// Update parallax background
-		this.parallaxBackground.update(deltaTime);
-
-		// Update component cache
-		const componentCache = this.world.getResource<ComponentCache>('componentCache');
-		if (componentCache) {
-			componentCache.update(deltaTime);
-		}
-
-		// Update ECS world systems (GameScreen owns the World)
-		this.world.updateSystems(deltaTime);
-
-		// Update level manager
-		this.levelManager.update(deltaTime);
-
-		// Check for level completion
-		if (this.levelManager.isLevelComplete() && this.state === 'idle') {
-			this.state = 'transitioning';
-			this.handleLevelCompletion();
+	private updateParallaxSpeed(): void {
+		// Get player ship to check movement
+		const playerShip = this.getPlayerShip();
+		if (playerShip) {
+			// Get player velocity to adjust parallax speed
+			const positionComponent = this.world.getComponent(playerShip.id, 'PositionComponent') as any;
+			if (positionComponent) {
+				// Adjust speed based on player vertical movement
+				// When ship moves up (negative velocityY), stars should move faster backward
+				// When ship moves down (positive velocityY), stars should move slower
+				const speedMultiplier = Math.max(0.1, 1.0 - positionComponent.velocityY * 0.01);
+				this.parallaxBackground.setScrollSpeed(speedMultiplier);
+			}
 		}
 	}
 
-	render(canvas: Canvas): void {
-		// Update the render pipeline with the current canvas
-		this.renderPipeline.updateCanvas(canvas);
-		this.parallaxRenderer.updateCanvas(canvas);
+	private updateParallaxTheme(): void {
+		// Change theme based on level or game state
+		const currentLevel = this.currentLevelNumber;
 
-		// Render parallax background first (behind everything)
-		this.parallaxRenderer.renderLayers(this.parallaxBackground.getLayers());
+		let theme: 'space' | 'nebula' | 'grid' | 'stars' = 'stars';
+		if (currentLevel % 2 === 0) theme = 'space';
+		if (currentLevel % 3 === 0) theme = 'nebula';
+		if (currentLevel % 4 === 0) theme = 'grid';
 
-		// Get the render queue from resources
-		const renderQueue = this.world.getResource<RenderQueue>('renderQueue');
-		if (renderQueue) {
-			// Execute the render pipeline
-			this.renderPipeline.execute(renderQueue);
-		}
-
-		// Render level progress
-		this.renderLevelProgress(canvas);
-
-		// Render performance info (top-right corner)
-		this.renderPerformanceInfo(canvas);
+		this.parallaxBackground.setTheme(theme);
+		console.log(`Level theme changed to: ${theme} for level ${currentLevel}`);
 	}
 
 	private renderLevelProgress(canvas: Canvas): void {
@@ -212,10 +242,7 @@ export class GameScreen extends BaseScreen {
 			canvas.drawText(`Level: ${currentLevel.name}`, 10, 50, '16px Arial', '#ffffff');
 		}
 
-		// Display player health
 		this.renderPlayerHealth(canvas);
-
-		// Display active power-ups
 		this.renderActivePowerUps(canvas);
 	}
 
@@ -391,22 +418,6 @@ export class GameScreen extends BaseScreen {
 		canvas.drawText(`Frame Stability: ${variance.toFixed(1)}ms`, x, y, '12px Arial', varianceColor);
 	}
 
-	renderWithTransition(canvas: Canvas): void {
-		this.render(canvas);
-	}
-
-	handleInput(_inputManager: InputManager): void {
-		// Input is handled by InputSystem
-	}
-
-	onEnter(): void {
-		console.log('Entering GameScreen');
-	}
-
-	onExit(): void {
-		console.log('Exiting GameScreen');
-	}
-
 	private handlePlayerDeath(): void {
 		console.log('Player died! Restarting level...');
 		this.restartLevel();
@@ -441,6 +452,7 @@ export class GameScreen extends BaseScreen {
 			await this.levelManager.loadLevelFromFile(nextLevelNumber);
 			this.currentLevelNumber = nextLevelNumber;
 			this.state = 'idle';
+			this.updateParallaxTheme();
 
 			// Restore player health for the new level
 			this.restorePlayerHealth();

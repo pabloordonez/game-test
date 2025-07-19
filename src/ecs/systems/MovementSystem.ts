@@ -74,8 +74,8 @@ export class MovementSystem implements System {
 
         // Clean up powerups and bullets that fall off the bottom or go too far off-screen
         if (tags.includes('powerup') || tags.includes('bullet')) {
-            if (position.y > canvasHeight + buffer || 
-                position.x < -buffer || 
+            if (position.y > canvasHeight + buffer ||
+                position.x < -buffer ||
                 position.x > canvasWidth + buffer ||
                 position.y < -buffer) {
                 this.world.destroyEntity(entity.id);

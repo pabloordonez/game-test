@@ -16,8 +16,4 @@ export class RenderPipeline {
 		renderQueue.renderBatched(this.canvas.getContext());
 		// Note: render call count is now tracked by OptimizedRenderQueue internally
 	}
-
-	updateCanvas(newCanvas: Canvas): void {
-		this.canvas = newCanvas;
-	}
 }

@@ -26,7 +26,7 @@ export class AudioSystem implements System {
 
     private processAudioEvents(audioComponent: AudioComponent): void {
         const events = audioComponent.getEvents();
-        
+
         for (const event of events) {
             this.processAudioEvent(event);
         }
@@ -59,4 +59,4 @@ export class AudioSystem implements System {
     setEntities(entities: Entity[]): void {
         this.entities = entities;
     }
-} 
+}
